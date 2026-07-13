@@ -56,7 +56,7 @@ const OLD_URL = need('OLD_URL');
 const OLD_ANON_KEY = need('OLD_ANON_KEY');
 const OLD_LOGIN = need('OLD_LOGIN');
 const OLD_PASSWORD = need('OLD_PASSWORD');
-const WORLD_CODE = need('WORLD_CODE').trim().toUpperCase();
+let WORLD_CODE = (process.env.WORLD_CODE || '').trim().toUpperCase();
 const NEW_URL = need('NEW_URL');
 const NEW_ANON_KEY = need('NEW_ANON_KEY');
 const NEW_LOGIN = need('NEW_LOGIN');
@@ -85,12 +85,26 @@ function extFromUrl(url) {
 }
 
 async function main() {
-  console.log(`\n== Перенос острова ${WORLD_CODE} ==\n`);
-
   // ---------- СТАРЫЙ сервер: читаем всё ----------
   const oldSb = client(OLD_URL, OLD_ANON_KEY);
   await signIn(oldSb, OLD_LOGIN, OLD_PASSWORD, 'старый сервер');
   console.log('✔ Вошли на старый сервер.');
+
+  // Если код острова не задан — определяем сами по членству аккаунта.
+  if (!WORLD_CODE) {
+    const { data, error } = await oldSb.from('world_members').select('world_code');
+    if (error) throw new Error('Поиск островов: ' + error.message);
+    const codes = [...new Set((data || []).map((r) => r.world_code))];
+    if (codes.length === 0) throw new Error('На старом сервере у этого аккаунта нет островов.');
+    if (codes.length > 1) {
+      throw new Error('Найдено несколько островов: ' + codes.join(', ') +
+        '. Впиши нужный в WORLD_CODE в scripts/migrate.env и запусти снова.');
+    }
+    WORLD_CODE = codes[0];
+    console.log('✔ Остров определён автоматически: ' + WORLD_CODE);
+  }
+
+  console.log(`\n== Перенос острова ${WORLD_CODE} ==\n`);
 
   const { data: world, error: wErr } = await oldSb
     .from('worlds').select('code').eq('code', WORLD_CODE).maybeSingle();
