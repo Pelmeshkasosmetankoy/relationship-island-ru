@@ -43,21 +43,17 @@ create index if not exists events_world_code_idx on events(world_code);
 alter table worlds enable row level security;
 alter table events enable row level security;
 
--- Открытые политики черновика. Ниже (в разделе 2) они удаляются и заменяются
--- на «только участник острова». Создаём их и сразу же ужесточаем, чтобы этот
--- файл давал ровно то же итоговое состояние, что и последовательный прогон
--- исходных скриптов проекта.
-create policy "anyone can create a world" on worlds
-  for insert to anon with check (true);
-create policy "anyone can read a world by code" on worlds
-  for select to anon using (true);
-create policy "anyone can read events" on events
-  for select to anon using (true);
-create policy "anyone can add events" on events
-  for insert to anon with check (true);
+-- Примечание: доступ к данным настраивается ниже, в РАЗДЕЛЕ 2 («только участник
+-- острова»). Здесь только таблицы, индексы, включение защиты (RLS) и «живая
+-- синхронизация». Все команды безопасны для повторного запуска.
 
 -- Живая синхронизация воспоминаний между партнёрами.
-alter publication supabase_realtime add table events;
+-- (add table может ругнуться «already member», если таблица уже подключена —
+--  DO-блок гасит эту ошибку, чтобы скрипт можно было запускать повторно.)
+do $$ begin
+  alter publication supabase_realtime add table events;
+exception when duplicate_object then null;
+end $$;
 
 -- ----- Магазин / монеты -----
 create table if not exists purchases (
@@ -68,12 +64,7 @@ create table if not exists purchases (
   unique (world_code, item_key)
 );
 create index if not exists purchases_world_code_idx on purchases(world_code);
-
 alter table purchases enable row level security;
-create policy "anyone can read purchases" on purchases
-  for select to anon using (true);
-create policy "anyone can add purchases" on purchases
-  for insert to anon with check (true);
 
 create table if not exists settings (
   world_code text not null references worlds(code) on delete cascade,
@@ -82,44 +73,32 @@ create table if not exists settings (
   updated_at timestamptz not null default now(),
   primary key (world_code, key)
 );
-
 alter table settings enable row level security;
-create policy "anyone can read settings" on settings
-  for select to anon using (true);
-create policy "anyone can add settings" on settings
-  for insert to anon with check (true);
-create policy "anyone can update settings" on settings
-  for update to anon using (true) with check (true);
 
-alter publication supabase_realtime add table purchases;
-alter publication supabase_realtime add table settings;
+do $$ begin
+  alter publication supabase_realtime add table purchases;
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  alter publication supabase_realtime add table settings;
+exception when duplicate_object then null;
+end $$;
 
--- ----- Редактирование/удаление воспоминаний + список желаний -----
-create policy "anyone can edit events" on events
-  for update to anon using (true) with check (true);
-create policy "anyone can delete events" on events
-  for delete to anon using (true);
-
+-- ----- Список желаний -----
 create table if not exists wishes (
-  id uuid primary key default gen_random_uuid(),
   world_code text not null references worlds(code) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
   text text not null,
   done boolean not null default false,
   created_at timestamptz not null default now()
 );
 create index if not exists wishes_world_code_idx on wishes(world_code);
-
 alter table wishes enable row level security;
-create policy "anyone can read wishes" on wishes
-  for select to anon using (true);
-create policy "anyone can add wishes" on wishes
-  for insert to anon with check (true);
-create policy "anyone can edit wishes" on wishes
-  for update to anon using (true) with check (true);
-create policy "anyone can delete wishes" on wishes
-  for delete to anon using (true);
 
-alter publication supabase_realtime add table wishes;
+do $$ begin
+  alter publication supabase_realtime add table wishes;
+exception when duplicate_object then null;
+end $$;
 
 
 -- =====================================================================
@@ -170,6 +149,8 @@ create policy "leave a world" on world_members
 -- worlds: залогиненные создают остров и ищут код для вступления.
 drop policy if exists "anyone can create a world" on worlds;
 drop policy if exists "anyone can read a world by code" on worlds;
+drop policy if exists "create a world" on worlds;
+drop policy if exists "look up a world by code" on worlds;
 create policy "create a world" on worlds
   for insert to authenticated with check (true);
 create policy "look up a world by code" on worlds
@@ -180,6 +161,10 @@ drop policy if exists "anyone can read events"   on events;
 drop policy if exists "anyone can add events"    on events;
 drop policy if exists "anyone can edit events"   on events;
 drop policy if exists "anyone can delete events" on events;
+drop policy if exists "members read events"   on events;
+drop policy if exists "members add events"    on events;
+drop policy if exists "members edit events"   on events;
+drop policy if exists "members delete events" on events;
 create policy "members read events" on events
   for select to authenticated using (public.is_world_member(world_code));
 create policy "members add events" on events
@@ -191,6 +176,8 @@ create policy "members delete events" on events
 
 drop policy if exists "anyone can read purchases" on purchases;
 drop policy if exists "anyone can add purchases"  on purchases;
+drop policy if exists "members read purchases" on purchases;
+drop policy if exists "members add purchases"  on purchases;
 create policy "members read purchases" on purchases
   for select to authenticated using (public.is_world_member(world_code));
 create policy "members add purchases" on purchases
@@ -199,6 +186,9 @@ create policy "members add purchases" on purchases
 drop policy if exists "anyone can read settings"   on settings;
 drop policy if exists "anyone can add settings"    on settings;
 drop policy if exists "anyone can update settings" on settings;
+drop policy if exists "members read settings"   on settings;
+drop policy if exists "members add settings"    on settings;
+drop policy if exists "members update settings" on settings;
 create policy "members read settings" on settings
   for select to authenticated using (public.is_world_member(world_code));
 create policy "members add settings" on settings
@@ -210,6 +200,10 @@ drop policy if exists "anyone can read wishes"   on wishes;
 drop policy if exists "anyone can add wishes"    on wishes;
 drop policy if exists "anyone can edit wishes"   on wishes;
 drop policy if exists "anyone can delete wishes" on wishes;
+drop policy if exists "members read wishes"   on wishes;
+drop policy if exists "members add wishes"    on wishes;
+drop policy if exists "members edit wishes"   on wishes;
+drop policy if exists "members delete wishes" on wishes;
 create policy "members read wishes" on wishes
   for select to authenticated using (public.is_world_member(world_code));
 create policy "members add wishes" on wishes
