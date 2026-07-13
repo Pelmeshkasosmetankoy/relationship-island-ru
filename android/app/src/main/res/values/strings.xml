@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Наш остров</string>
+    <string name="title_activity_main">Наш остров</string>
+    <string name="package_name">com.dasha.ostrov</string>
+    <string name="custom_url_scheme">com.dasha.ostrov</string>
+</resources>

@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+.DS_Store
+
+# stray empty clone of the GitHub repo — not part of this project
+relationship-island-app-2/
