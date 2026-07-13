@@ -3,5 +3,8 @@ dist
 .env
 .DS_Store
 
+# логины/пароли для одноразового переноса острова — НЕ коммитить
+scripts/migrate.env
+
 # stray empty clone of the GitHub repo — not part of this project
 relationship-island-app-2/
