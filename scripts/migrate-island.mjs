@@ -17,9 +17,11 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, unlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const INTERNAL_DOMAIN = 'ostrov.local'; // как в src/lib/auth.js
@@ -78,6 +80,22 @@ async function signIn(sb, login, password, label) {
   return uid;
 }
 
+// Для НОВОГО сервера: если аккаунта ещё нет — создаём его (autoconfirm включён,
+// поэтому сессия выдаётся сразу). Логин/пароль из migrate.env становятся аккаунтом.
+async function signInOrSignUp(sb, login, password, label) {
+  const email = loginToEmail(login);
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (!error && data.user) return data.user.id;
+  const up = await sb.auth.signUp({ email, password });
+  if (up.error) {
+    throw new Error(`Вход/регистрация на ${label} не удались для «${login}»: ${up.error.message}` +
+      ' (если аккаунт уже есть — проверь пароль в migrate.env)');
+  }
+  if (!up.data.session) throw new Error(`На ${label} аккаунт создан, но сессии нет (autoconfirm выключен?).`);
+  console.log(`✔ На ${label} создан новый аккаунт «${login}».`);
+  return up.data.user.id;
+}
+
 function extFromUrl(url) {
   const clean = url.split('?')[0];
   const m = clean.match(/\.([a-zA-Z0-9]{1,5})$/);
@@ -124,7 +142,7 @@ async function main() {
 
   // ---------- НОВЫЙ сервер: пишем всё ----------
   const newSb = client(NEW_URL, NEW_ANON_KEY);
-  const newUid = await signIn(newSb, NEW_LOGIN, NEW_PASSWORD, 'новый сервер');
+  const newUid = await signInOrSignUp(newSb, NEW_LOGIN, NEW_PASSWORD, 'новый сервер');
   console.log('✔ Вошли на новый сервер.');
 
   // остров (тот же код) — игнорируем «уже существует» (23505)
@@ -140,29 +158,42 @@ async function main() {
   }
   console.log('✔ Остров и членство готовы на новом сервере.');
 
-  // защита от дублей
+  // Сброс назначения: удаляем прежние воспоминания и желания этого острова на
+  // НОВОМ сервере, чтобы перенос был повторяемым (без дублей при перезапуске).
+  // Острова/покупки/настройки не трогаем — они добавляются idempotent-но (upsert).
   {
-    const { count, error } = await newSb.from('events')
-      .select('id', { count: 'exact', head: true }).eq('world_code', WORLD_CODE);
-    if (error) throw error;
-    if (count && count > 0 && !FORCE) {
-      console.error(`\n✖ На новом сервере в острове ${WORLD_CODE} уже есть ${count} воспоминаний.`);
-      console.error('  Чтобы не создавать дубли, перенос остановлен. Если это ожидаемо и нужно');
-      console.error('  добавить всё ещё раз — поставь FORCE=1 в scripts/migrate.env.\n');
-      process.exit(2);
-    }
+    const d1 = await newSb.from('events').delete().eq('world_code', WORLD_CODE);
+    if (d1.error) throw new Error(`Очистка воспоминаний на новом сервере: ${d1.error.message}`);
+    const d2 = await newSb.from('wishes').delete().eq('world_code', WORLD_CODE);
+    if (d2.error) throw new Error(`Очистка желаний на новом сервере: ${d2.error.message}`);
   }
 
-  // фото: скачиваем со старого и заливаем в новый бакет event-photos
+  // фото: скачиваем со старого сервера через curl (встроенный fetch в этой среде
+  // рвёт соединение к хранилищу), затем заливаем в новый бакет event-photos.
+  const CTYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
   async function movePhoto(oldUrl) {
-    const resp = await fetch(oldUrl);
-    if (!resp.ok) throw new Error(`Не скачалось фото ${oldUrl} (HTTP ${resp.status})`);
-    const buf = Buffer.from(await resp.arrayBuffer());
-    const contentType = resp.headers.get('content-type') || 'image/jpeg';
-    const path = `${WORLD_CODE}/${Date.now()}-${Math.floor(Math.random() * 1e6)}.${extFromUrl(oldUrl)}`;
-    const { error } = await newSb.storage.from('event-photos').upload(path, buf, { contentType, upsert: false });
-    if (error) throw new Error(`Загрузка фото на новый сервер: ${error.message}`);
-    return newSb.storage.from('event-photos').getPublicUrl(path).data.publicUrl;
+    const ext = extFromUrl(oldUrl);
+    const tmp = join(tmpdir(), `mig-${Date.now()}-${Math.floor(Math.random() * 1e6)}.${ext}`);
+    let lastErr;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        // -f: ошибка при HTTP>=400; -sS: тихо, но показать ошибку; --max-time: таймаут
+        execFileSync('curl', ['-fsS', '--max-time', '60', '-o', tmp, oldUrl], { stdio: ['ignore', 'ignore', 'pipe'] });
+        const buf = readFileSync(tmp);
+        if (!buf.length) throw new Error('пустой файл');
+        const contentType = CTYPES[ext] || 'image/jpeg';
+        const path = `${WORLD_CODE}/${Date.now()}-${Math.floor(Math.random() * 1e6)}.${ext}`;
+        const { error } = await newSb.storage.from('event-photos').upload(path, buf, { contentType, upsert: false });
+        if (error) throw new Error(`загрузка: ${error.message}`);
+        return newSb.storage.from('event-photos').getPublicUrl(path).data.publicUrl;
+      } catch (e) {
+        lastErr = e;
+        await new Promise((r) => setTimeout(r, 1500 * attempt));
+      } finally {
+        try { unlinkSync(tmp); } catch {}
+      }
+    }
+    throw lastErr;
   }
 
   // воспоминания (сохраняем дату created_at, тип, заметку, фото)
