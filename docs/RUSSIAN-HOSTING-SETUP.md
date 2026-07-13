@@ -60,11 +60,17 @@
 Вставь команды по одной в консоль сервера:
 
 ```bash
-apt update && apt install -y docker.io docker-compose-plugin git
+apt update && apt install -y docker.io docker-compose-v2 git
 systemctl enable --now docker
 docker --version
+docker compose version
 ```
-Если последняя строка показала версию — Docker готов.
+Если обе последние команды показали версию — Docker и Compose готовы.
+
+> Примечание: на Ubuntu пакет плагина Compose называется `docker-compose-v2`
+> (не `docker-compose-plugin` — это имя из репозитория Docker, а мы ставим версию
+> из репозитория Ubuntu вместе с `docker.io`). Команда потом — `docker compose`
+> (через пробел).
 
 ---
 
