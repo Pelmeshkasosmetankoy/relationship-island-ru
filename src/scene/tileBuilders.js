@@ -13,7 +13,17 @@ export const TYPES = [
   { key:'theater',   label:'Совместный культурный отдых',  color:'#dfd0a0', icon:'🎭', iconPath:'/event-icons/theatre.svg' },
   { key:'waterfall', label:'После крупной общей цели',     color:'#8a95a0', icon:'⛲', iconPath:'/event-icons/fountain.svg' },
   { key:'cinema',    label:'Просмотренный фильм / сериал', color:'#3a3450', icon:'🎬', iconPath:'/event-icons/cinema.svg' },
-  { key:'play',      label:'Вместе играли',                color:'#7a5cc9', icon:'🎮' },
+  { key:'play',      label:'Играли в игры',                color:'#6fa85a', icon:'🎮' },
+  { key:'kitchen',   label:'Вместе готовили',              color:'#6fa85a', icon:'🍳' },
+  { key:'skating',   label:'Катались на коньках',          color:'#8fd6e8', icon:'⛸️' },
+  { key:'proposal',  label:'Сделал предложение',           color:'#6fa85a', icon:'💍' },
+  { key:'fooling',   label:'Дурачились вместе',             color:'#6fa85a', icon:'🤪' },
+  { key:'quest',     label:'Были на квесте',               color:'#6fa85a', icon:'🗝️' },
+  { key:'rain',      label:'Попали под дождь',             color:'#6fa85a', icon:'🌧️' },
+  { key:'beach',     label:'Были на пляже',                color:'#6fa85a', icon:'🏖️' },
+  { key:'hike',      label:'Сходили в поход',              color:'#6fa85a', icon:'⛺' },
+  { key:'movein',    label:'Съехались',                    color:'#6fa85a', icon:'🏡' },
+  { key:'pet',       label:'Завели питомца',               color:'#6fa85a', icon:'🐾' },
   { key:'castle',    label:'Годовщина отношений',          color:'#c7ccd6', icon:'🏰', iconPath:'/event-icons/castle.svg' },
   { key:'viewpoint', label:'Рассвет или закат вместе',     color:'#7bb35a', icon:'🌅', iconPath:'/event-icons/dawn.svg' },
   { key:'sakura',    label:'Весна вместе',                  color:'#8fce78', icon:'🌸', iconPath:'/event-icons/sakura.svg' },
@@ -183,7 +193,10 @@ export function buildTile(id, type, q, r){
     starfield: 0x4a3f75, coffee: 0xdec9a0, theater: 0xe0d4b0,
     waterfall: 0x6fa85a, cinema: 0x2e2a45, play: 0x6fa85a, castle: 0xc7ccd6,
     viewpoint: 0x6fa85a, sakura: 0x7ec26a, sunflower: 0x8fc24a,
-    autumn: 0xcf8a3a, snowman: 0xeef3f7
+    autumn: 0xcf8a3a, snowman: 0xeef3f7,
+    kitchen: 0x6fa85a, skating: 0x8fd6e8, proposal: 0x6fa85a, fooling: 0x6fa85a,
+    quest: 0x6fa85a, rain: 0x6fa85a, beach: 0x6fa85a, hike: 0x6fa85a,
+    movein: 0x6fa85a, pet: 0x6fa85a
   };
   const topColor = baseColors[type] || 0x7fae5c;
   const sideColor = shade(topColor, 0.5);
