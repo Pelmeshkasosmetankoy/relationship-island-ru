@@ -34,7 +34,7 @@ export const TILE_MODELS = {
   theater:   { url: '/models/theater.glb',   hideBase: true, scaleMul: 0.9, doubleSide: true },
   waterfall: { url: '/models/fountain.glb',  hideBase: true, yOffset: 0.1 },
   cinema:    { url: '/models/cinema.glb',    hideBase: true, yOffset: -0.2 },
-  play:      { url: '/models/play.glb',      hideBase: true, yOffset: 0.8 },
+  play:      { url: '/models/play.glb',      hideBase: true, yOffset: 0.5 },
   castle:    { url: '/models/castle.glb',    hideBase: true, roundClip: true },
   viewpoint: { url: '/models/viewpoint.glb', hideBase: true },
   sakura:    { url: '/models/sakura2.glb',   hideBase: true },
