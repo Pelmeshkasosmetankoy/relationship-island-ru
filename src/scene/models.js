@@ -38,10 +38,10 @@ export const TILE_MODELS = {
   // базы-шестиугольника (BASE_TOP), так что по высоте все стоят одинаково.
   // scaleMul 0.72 уменьшает модель, чтобы её края не выходили за грани
   // шестиугольника и ничего не срезалось клиппингом.
-  play:      { url: '/models/play0.glb',       hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
+  play:      { url: '/models/play0.glb',       hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   kitchen:   { url: '/models/kitchen0.glb',    hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
   skating:   { url: '/models/konki.glb',       hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
-  proposal:  { url: '/models/Predlozhenie.glb', hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
+  proposal:  { url: '/models/Predlozhenie.glb', hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   fooling:   { url: '/models/durachilis.glb',  hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
   quest:     { url: '/models/kvest.glb',       hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
   rain:      { url: '/models/rain.glb',        hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
