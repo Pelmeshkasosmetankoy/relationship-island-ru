@@ -13,6 +13,7 @@ export const TYPES = [
   { key:'theater',   label:'Совместный культурный отдых',  color:'#dfd0a0', icon:'🎭', iconPath:'/event-icons/theatre.svg' },
   { key:'waterfall', label:'После крупной общей цели',     color:'#8a95a0', icon:'⛲', iconPath:'/event-icons/fountain.svg' },
   { key:'cinema',    label:'Просмотренный фильм / сериал', color:'#3a3450', icon:'🎬', iconPath:'/event-icons/cinema.svg' },
+  { key:'play',      label:'Вместе играли',                color:'#7a5cc9', icon:'🎮' },
   { key:'castle',    label:'Годовщина отношений',          color:'#c7ccd6', icon:'🏰', iconPath:'/event-icons/castle.svg' },
   { key:'viewpoint', label:'Рассвет или закат вместе',     color:'#7bb35a', icon:'🌅', iconPath:'/event-icons/dawn.svg' },
   { key:'sakura',    label:'Весна вместе',                  color:'#8fce78', icon:'🌸', iconPath:'/event-icons/sakura.svg' },
@@ -180,7 +181,7 @@ export function buildTile(id, type, q, r){
     home: 0xdccf9e, forest: 0x6fa85a, mountains: 0xd7dbe0,
     lake: 0x8fbf7a, city: 0xe0cd9c, milestone: 0x8a76b8,
     starfield: 0x4a3f75, coffee: 0xdec9a0, theater: 0xe0d4b0,
-    waterfall: 0x6fa85a, cinema: 0x2e2a45, castle: 0xc7ccd6,
+    waterfall: 0x6fa85a, cinema: 0x2e2a45, play: 0x6a54b0, castle: 0xc7ccd6,
     viewpoint: 0x6fa85a, sakura: 0x7ec26a, sunflower: 0x8fc24a,
     autumn: 0xcf8a3a, snowman: 0xeef3f7
   };
