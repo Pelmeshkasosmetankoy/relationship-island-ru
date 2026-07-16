@@ -111,7 +111,7 @@ export function getTileModel(type, tileX = 0, tileZ = 0) {
   root.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = false; // models don't cast shadows — big perf win on phones
-    o.receiveShadow = true;
+    o.receiveShadow = !cfg.noReceiveShadow; // некоторым моделям тень сцены мешает
     const src = Array.isArray(o.material) ? o.material : [o.material];
     const clipped = src.map((m) => {
       const c = m.clone();

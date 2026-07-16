@@ -56,7 +56,7 @@ export const TILE_MODELS = {
   nature:    { url: '/models/priroda.glb',     hideBase: true, yOffset: 0.6, scaleMul: 0.95 },
   newthing:  { url: '/models/new.glb',         hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
   buy:       { url: '/models/buy.glb',         hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
-  picnic:    { url: '/models/picnic.glb',      hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
+  picnic:    { url: '/models/picnic.glb',      hideBase: true, yOffset: 0.6, scaleMul: 0.85, noReceiveShadow: true },
   prazdnik:  { url: '/models/prazdnik.glb',    hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   osobenno:  { url: '/models/osobenno.glb',    hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   svidanie:  { url: '/models/svidanie.glb',    hideBase: true, yOffset: 0.6, scaleMul: 0.85 },

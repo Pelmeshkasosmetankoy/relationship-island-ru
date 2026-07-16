@@ -32,10 +32,10 @@ export const TYPES = [
   { key:'newthing',  label:'Попробовали что-то новое',     color:'#9a7ad0', icon:'✨' },
   { key:'buy',       label:'Купили что-то вместе',         color:'#d88a5a', icon:'🛍️' },
   { key:'picnic',    label:'Пикник вместе',                color:'#8fc24a', icon:'🧺' },
-  { key:'prazdnik',  label:'Отметили праздник',            color:'#d86a9a', icon:'🎊' },
-  { key:'osobenno',  label:'Сделали этот день особенным',  color:'#e0b060', icon:'🌟' },
-  { key:'svidanie',  label:'Были на свидании',             color:'#e07a9a', icon:'💕' },
-  { key:'newstep',   label:'Новый этап в отношениях',      color:'#b488d0', icon:'🌱' },
+  { key:'prazdnik',  label:'Отметили праздник',            color:'#b187d6', icon:'🎊' },
+  { key:'osobenno',  label:'Сделали этот день особенным',  color:'#d0473f', icon:'🌟' },
+  { key:'svidanie',  label:'Были на свидании',             color:'#cf5f80', icon:'💕' },
+  { key:'newstep',   label:'Новый этап в отношениях',      color:'#9c6b42', icon:'🌱' },
   { key:'castle',    label:'Годовщина отношений',          color:'#c7ccd6', icon:'🏰', iconPath:'/event-icons/castle.svg' },
   { key:'viewpoint', label:'Рассвет или закат вместе',     color:'#7bb35a', icon:'🌅', iconPath:'/event-icons/dawn.svg' },
   { key:'sakura',    label:'Весна вместе',                  color:'#8fce78', icon:'🌸', iconPath:'/event-icons/sakura.svg' },
@@ -47,9 +47,9 @@ export const TYPES = [
 // Группировка типов событий для окна «Добавить событие» (сворачиваемые разделы).
 // Подписи разделов — в i18n по ключам evcat_<id>_title / evcat_<id>_sub.
 export const TYPE_CATEGORIES = [
-  { id:'milestones', icon:'💍', accent:'#e89ab8', keys:['proposal','newstep','castle','movein','pet','milestone'] },
+  { id:'milestones', icon:'💍', iconPath:'/event-icons/ring.svg',   accent:'#e89ab8', keys:['proposal','newstep','castle','movein','pet','milestone'] },
   { id:'fun',        icon:'🎉', accent:'#e6b84a', keys:['svidanie','prazdnik','osobenno','coffee','theater','cinema','play','kitchen','fooling','quest','gift','dinner','buy'] },
-  { id:'adventures', icon:'🏞️', accent:'#6fb85a', keys:['picnic','forest','city','starfield','skating','beach','hike','bike','spontan','nature','newthing','viewpoint','rain'] },
+  { id:'adventures', icon:'🏞️', iconPath:'/event-icons/nature.svg', accent:'#6fb85a', keys:['picnic','forest','city','starfield','skating','beach','hike','bike','spontan','nature','newthing','viewpoint','rain'] },
   { id:'feelings',   icon:'🌊', accent:'#7bb6d8', keys:['lake','mountains','waterfall','sakura','sunflower','autumn','snowman'] },
 ];
 
@@ -220,7 +220,7 @@ export function buildTile(id, type, q, r){
     movein: 0xd0a878, pet: 0xc98f5c,
     bike: 0x6fa85a, gift: 0xd05a6a, dinner: 0xd07a96,
     spontan: 0xe0b84a, nature: 0x6fae55, newthing: 0x9a7ad0, buy: 0xd88a5a,
-    picnic: 0x8fc24a, prazdnik: 0xd86a9a, osobenno: 0xe0b060, svidanie: 0xe07a9a, newstep: 0xb488d0
+    picnic: 0x8fc24a, prazdnik: 0xb187d6, osobenno: 0xd0473f, svidanie: 0xcf5f80, newstep: 0x9c6b42
   };
   const topColor = baseColors[type] || 0x7fae5c;
   const sideColor = shade(topColor, 0.5);

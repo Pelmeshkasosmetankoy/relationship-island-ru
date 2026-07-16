@@ -208,6 +208,7 @@ input[type=text].auth-input,input[type=password].auth-input{ text-transform:none
   background:rgba(255,255,255,0.045);
   box-shadow:0 0 16px -4px var(--cat-accent, var(--gold)), inset 0 0 0 1px var(--cat-accent, var(--gold));
 }
+.type-cat-img{ width:30px; height:30px; object-fit:contain; display:block; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.25)); }
 .type-cat-text{ display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
 .type-cat-title{ font-size:15px; font-weight:700; letter-spacing:0.2px; color:var(--cat-accent, var(--gold)); display:flex; align-items:center; gap:7px; }
 .type-cat-sub{ font-size:11.5px; color:var(--parchment-dim); }

@@ -155,7 +155,9 @@ export default function AddEventModal({ onClose, onSave, event }) {
             return (
               <div className={`type-cat ${open ? 'open' : ''}`} key={cat.id} style={{ '--cat-accent': cat.accent }}>
                 <button type="button" className="type-cat-header" onClick={() => toggleCat(cat.id)}>
-                  <span className="type-cat-emoji">{cat.icon}</span>
+                  <span className="type-cat-emoji">
+                    {cat.iconPath ? <img src={cat.iconPath} alt="" className="type-cat-img" /> : cat.icon}
+                  </span>
                   <span className="type-cat-text">
                     <span className="type-cat-title">
                       {tr('evcat_' + cat.id + '_title')}
