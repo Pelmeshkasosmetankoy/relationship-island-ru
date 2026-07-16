@@ -40,6 +40,14 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   renderer.localClippingEnabled = true; // per-tile hexagon clipping of models
   container.appendChild(renderer.domElement);
 
+  // Диагностический счётчик FPS (кадров/с). Показывает, тяжело ли телефону
+  // рисовать сцену: ~55–60 — плавно, 25–40 — заметные лаги. Убрать позже.
+  const fpsEl = document.createElement('div');
+  fpsEl.style.cssText = 'position:fixed;top:10px;left:10px;z-index:99999;background:rgba(0,0,0,0.55);color:#fff;font:600 12px monospace;padding:3px 8px;border-radius:7px;pointer-events:none';
+  fpsEl.textContent = 'FPS —';
+  container.appendChild(fpsEl);
+  let fpsFrames = 0, fpsLast = performance.now();
+
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
@@ -274,6 +282,13 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     }
     controls.update();
     renderer.render(scene, camera);
+    fpsFrames++;
+    const fpsNow = performance.now();
+    if (fpsNow - fpsLast >= 500) {
+      fpsEl.textContent = 'FPS ' + Math.round((fpsFrames * 1000) / (fpsNow - fpsLast));
+      fpsFrames = 0;
+      fpsLast = fpsNow;
+    }
   }
   animate();
 
@@ -354,6 +369,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     if (dynamic.highlight) dynamic.highlight.parent?.remove(dynamic.highlight);
     renderer.dispose();
     container.removeChild(renderer.domElement);
+    if (fpsEl.parentNode) fpsEl.parentNode.removeChild(fpsEl);
   };
 }
 

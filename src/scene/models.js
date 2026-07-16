@@ -56,7 +56,7 @@ export const TILE_MODELS = {
   spontan:   { url: '/models/spontanno0.glb',  hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
   nature:    { url: '/models/priroda.glb',     hideBase: true, yOffset: 0.6, scaleMul: 0.95 },
   newthing:  { url: '/models/new.glb',         hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
-  buy:       { url: '/models/buy.glb',         hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
+  buy:       { url: '/models/buy.glb',         hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   castle:    { url: '/models/castle.glb',    hideBase: true, roundClip: true },
   viewpoint: { url: '/models/viewpoint.glb', hideBase: true },
   sakura:    { url: '/models/sakura2.glb',   hideBase: true },
