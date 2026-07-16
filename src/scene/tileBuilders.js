@@ -42,10 +42,10 @@ export const TYPES = [
 // Группировка типов событий для окна «Добавить событие» (сворачиваемые разделы).
 // Подписи разделов — в i18n по ключам evcat_<id>_title / evcat_<id>_sub.
 export const TYPE_CATEGORIES = [
-  { id:'milestones', icon:'💍', keys:['proposal','castle','movein','pet','milestone'] },
-  { id:'fun',        icon:'🎉', keys:['coffee','theater','cinema','play','kitchen','fooling','quest','gift','dinner','buy'] },
-  { id:'adventures', icon:'🏞️', keys:['forest','city','starfield','skating','beach','hike','bike','spontan','nature','newthing','viewpoint','rain'] },
-  { id:'feelings',   icon:'🌊', keys:['lake','mountains','waterfall','sakura','sunflower','autumn','snowman'] },
+  { id:'milestones', icon:'💍', accent:'#e89ab8', keys:['proposal','castle','movein','pet','milestone'] },
+  { id:'fun',        icon:'🎉', accent:'#e6b84a', keys:['coffee','theater','cinema','play','kitchen','fooling','quest','gift','dinner','buy'] },
+  { id:'adventures', icon:'🏞️', accent:'#6fb85a', keys:['forest','city','starfield','skating','beach','hike','bike','spontan','nature','newthing','viewpoint','rain'] },
+  { id:'feelings',   icon:'🌊', accent:'#7bb6d8', keys:['lake','mountains','waterfall','sakura','sunflower','autumn','snowman'] },
 ];
 
 function flatMat(hex){ return new THREE.MeshLambertMaterial({ color: hex }); }

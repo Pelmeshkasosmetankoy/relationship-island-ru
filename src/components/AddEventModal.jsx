@@ -60,13 +60,8 @@ export default function AddEventModal({ onClose, onSave, event }) {
   const editing = !!event;
   const noteRef = useRef(null);
   const [type, setType] = useState(event ? event.type : null);
-  // сворачиваемые разделы: по умолчанию открыт тот, где выбранный тип (при
-  // редактировании), иначе первый раздел
-  const [openCats, setOpenCats] = useState(() => {
-    const cur = event ? event.type : null;
-    const cat = TYPE_CATEGORIES.find((c) => c.keys.includes(cur));
-    return new Set([cat ? cat.id : TYPE_CATEGORIES[0].id]);
-  });
+  // сворачиваемые разделы: по умолчанию открыты все
+  const [openCats, setOpenCats] = useState(() => new Set(TYPE_CATEGORIES.map((c) => c.id)));
   const toggleCat = (id) => setOpenCats((prev) => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -158,7 +153,7 @@ export default function AddEventModal({ onClose, onSave, event }) {
             const open = openCats.has(cat.id);
             const hasSelected = cat.keys.includes(type);
             return (
-              <div className={`type-cat ${open ? 'open' : ''}`} key={cat.id}>
+              <div className={`type-cat ${open ? 'open' : ''}`} key={cat.id} style={{ '--cat-accent': cat.accent }}>
                 <button type="button" className="type-cat-header" onClick={() => toggleCat(cat.id)}>
                   <span className="type-cat-emoji">{cat.icon}</span>
                   <span className="type-cat-text">
@@ -168,7 +163,9 @@ export default function AddEventModal({ onClose, onSave, event }) {
                     </span>
                     <span className="type-cat-sub">{tr('evcat_' + cat.id + '_sub')}</span>
                   </span>
-                  <span className="type-cat-chevron">▾</span>
+                  <svg className="type-cat-chevron" width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
                 {open && (
                   <div className="type-grid">
