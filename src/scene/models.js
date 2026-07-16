@@ -50,7 +50,6 @@ export const TILE_MODELS = {
   movein:    { url: '/models/house.glb',       hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   pet:       { url: '/models/cat.glb',         hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   bike:      { url: '/models/bike.glb',        hideBase: true, yOffset: 0.6, scaleMul: 0.95 },
-  music:     { url: '/models/music.glb',       hideBase: true, yOffset: 0.6, scaleMul: 0.95 },
   gift:      { url: '/models/gift.glb',        hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   dinner:    { url: '/models/yzhin.glb',       hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   spontan:   { url: '/models/spontanno0.glb',  hideBase: true, yOffset: 0.6, scaleMul: 0.72 },
