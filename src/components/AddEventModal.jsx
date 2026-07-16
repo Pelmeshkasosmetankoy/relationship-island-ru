@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
-import { TYPES } from '../scene/tileBuilders';
+import { TYPES, TYPE_CATEGORIES } from '../scene/tileBuilders';
 import { tr } from '../i18n';
 import { useSwipeDownClose } from '../lib/gestures';
+
+const TYPE_BY_KEY = Object.fromEntries(TYPES.map((t) => [t.key, t]));
 
 function toDateInput(value) {
   const d = value ? new Date(value) : new Date();
@@ -58,6 +60,18 @@ export default function AddEventModal({ onClose, onSave, event }) {
   const editing = !!event;
   const noteRef = useRef(null);
   const [type, setType] = useState(event ? event.type : null);
+  // сворачиваемые разделы: по умолчанию открыт тот, где выбранный тип (при
+  // редактировании), иначе первый раздел
+  const [openCats, setOpenCats] = useState(() => {
+    const cur = event ? event.type : null;
+    const cat = TYPE_CATEGORIES.find((c) => c.keys.includes(cur));
+    return new Set([cat ? cat.id : TYPE_CATEGORIES[0].id]);
+  });
+  const toggleCat = (id) => setOpenCats((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
   const [note, setNote] = useState(event ? event.note || '' : '');
   const [date, setDate] = useState(toDateInput(event ? event.dateISO : null));
   const [photoFile, setPhotoFile] = useState(null);
@@ -139,19 +153,46 @@ export default function AddEventModal({ onClose, onSave, event }) {
         <div className="modal-scroll" ref={scrollRef}>
         <h2>{editing ? tr('ev_edit_title') : tr('ev_add_title')}</h2>
         <p className="sub">{tr('ev_sub')}</p>
-        <div className="type-grid">
-          {TYPES.map((t) => (
-            <div
-              key={t.key}
-              className={`type-opt ${type === t.key ? 'selected' : ''}`}
-              onClick={() => setType(t.key)}
-            >
-              <div className="type-icon">
-                {t.iconPath ? <img src={t.iconPath} alt="" className="event-type-icon" /> : t.icon}
+        <div className="type-cats">
+          {TYPE_CATEGORIES.map((cat) => {
+            const open = openCats.has(cat.id);
+            const hasSelected = cat.keys.includes(type);
+            return (
+              <div className={`type-cat ${open ? 'open' : ''}`} key={cat.id}>
+                <button type="button" className="type-cat-header" onClick={() => toggleCat(cat.id)}>
+                  <span className="type-cat-emoji">{cat.icon}</span>
+                  <span className="type-cat-text">
+                    <span className="type-cat-title">
+                      {tr('evcat_' + cat.id + '_title')}
+                      {hasSelected && !open && <span className="type-cat-dot" />}
+                    </span>
+                    <span className="type-cat-sub">{tr('evcat_' + cat.id + '_sub')}</span>
+                  </span>
+                  <span className="type-cat-chevron">▾</span>
+                </button>
+                {open && (
+                  <div className="type-grid">
+                    {cat.keys.map((key) => {
+                      const t = TYPE_BY_KEY[key];
+                      if (!t) return null;
+                      return (
+                        <div
+                          key={key}
+                          className={`type-opt ${type === key ? 'selected' : ''}`}
+                          onClick={() => setType(key)}
+                        >
+                          <div className="type-icon">
+                            {t.iconPath ? <img src={t.iconPath} alt="" className="event-type-icon" /> : t.icon}
+                          </div>
+                          {tr('type_' + key)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              {tr('type_' + t.key)}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <label className="field-label">{tr('ev_when')}</label>

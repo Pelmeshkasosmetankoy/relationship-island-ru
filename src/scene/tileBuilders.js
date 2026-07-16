@@ -39,6 +39,15 @@ export const TYPES = [
   { key:'snowman',   label:'Зима вместе',                   color:'#eef3f7', icon:'⛄', iconPath:'/event-icons/snowman.svg' },
 ];
 
+// Группировка типов событий для окна «Добавить событие» (сворачиваемые разделы).
+// Подписи разделов — в i18n по ключам evcat_<id>_title / evcat_<id>_sub.
+export const TYPE_CATEGORIES = [
+  { id:'milestones', icon:'💍', keys:['proposal','castle','movein','pet','milestone'] },
+  { id:'fun',        icon:'🎉', keys:['coffee','theater','cinema','play','kitchen','fooling','quest','gift','dinner','buy'] },
+  { id:'adventures', icon:'🏞️', keys:['forest','city','starfield','skating','beach','hike','bike','spontan','nature','newthing','viewpoint','rain'] },
+  { id:'feelings',   icon:'🌊', keys:['lake','mountains','waterfall','sakura','sunflower','autumn','snowman'] },
+];
+
 function flatMat(hex){ return new THREE.MeshLambertMaterial({ color: hex }); }
 function shade(hex, factor){ const c = new THREE.Color(hex); c.multiplyScalar(factor); return c.getHex(); }
 function addRock(group, x, z, scale){
