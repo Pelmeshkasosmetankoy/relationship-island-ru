@@ -24,6 +24,14 @@ export const TYPES = [
   { key:'hike',      label:'Сходили в поход',              color:'#5f9a4a', icon:'⛺' },
   { key:'movein',    label:'Съехались',                    color:'#d0a878', icon:'🏡' },
   { key:'pet',       label:'Завели питомца',               color:'#c98f5c', icon:'🐾' },
+  { key:'bike',      label:'Катались на велосипеде',       color:'#7bb0d0', icon:'🚴' },
+  { key:'music',     label:'Вместе слушали музыку',        color:'#c97ab0', icon:'🎧' },
+  { key:'gift',      label:'Дарят подарки',                color:'#d05a6a', icon:'🎁' },
+  { key:'dinner',    label:'Вкусно поели',                 color:'#d9a24a', icon:'🍽️' },
+  { key:'spontan',   label:'Что-то спонтанное',            color:'#e0b84a', icon:'⚡' },
+  { key:'nature',    label:'Провели время на природе',     color:'#6fae55', icon:'🌿' },
+  { key:'newthing',  label:'Попробовали что-то новое',     color:'#9a7ad0', icon:'✨' },
+  { key:'buy',       label:'Купили что-то вместе',         color:'#d88a5a', icon:'🛍️' },
   { key:'castle',    label:'Годовщина отношений',          color:'#c7ccd6', icon:'🏰', iconPath:'/event-icons/castle.svg' },
   { key:'viewpoint', label:'Рассвет или закат вместе',     color:'#7bb35a', icon:'🌅', iconPath:'/event-icons/dawn.svg' },
   { key:'sakura',    label:'Весна вместе',                  color:'#8fce78', icon:'🌸', iconPath:'/event-icons/sakura.svg' },
@@ -196,7 +204,9 @@ export function buildTile(id, type, q, r){
     autumn: 0xcf8a3a, snowman: 0xeef3f7,
     kitchen: 0xe08a4a, skating: 0x8fd6e8, proposal: 0xe89ab8, fooling: 0xe6c84a,
     quest: 0x5a9ea0, rain: 0x8ea0bd, beach: 0xe8d79a, hike: 0x5f9a4a,
-    movein: 0xd0a878, pet: 0xc98f5c
+    movein: 0xd0a878, pet: 0xc98f5c,
+    bike: 0x7bb0d0, music: 0xc97ab0, gift: 0xd05a6a, dinner: 0xd9a24a,
+    spontan: 0xe0b84a, nature: 0x6fae55, newthing: 0x9a7ad0, buy: 0xd88a5a
   };
   const topColor = baseColors[type] || 0x7fae5c;
   const sideColor = shade(topColor, 0.5);

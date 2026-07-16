@@ -1,10 +1,14 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { TILE_MODELS } from './models';
 import { TILE_SIZE } from './hexMath';
 
+// Часть моделей сжата meshopt-ом (gltf-transform), чтобы влезть в приложение —
+// подключаем декодер, иначе такие .glb не загрузятся. Несжатые грузятся как обычно.
 const loader = new GLTFLoader();
+loader.setMeshoptDecoder(MeshoptDecoder);
 
 // type -> loaded THREE.Object3D (the model's root scene), or null if it failed to load
 const cache = new Map();
