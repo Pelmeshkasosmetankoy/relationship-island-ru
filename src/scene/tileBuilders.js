@@ -36,7 +36,7 @@ export const TYPES = [
   { key:'osobenno',  label:'Сделали этот день особенным',  color:'#d0473f', icon:'🌟' },
   { key:'svidanie',  label:'Были на свидании',             color:'#cf5f80', icon:'💕', iconPath:'/event-icons/romantic.svg' },
   { key:'newstep',   label:'Новый этап в отношениях',      color:'#9c6b42', icon:'🌱', iconPath:'/event-icons/stars.svg' },
-  { key:'dance',     label:'Танцевали вместе',             color:'#b85fc0', icon:'💃' },
+  { key:'dance',     label:'Танцевали вместе',             color:'#f2b0cf', icon:'💃' },
   { key:'castle',    label:'Годовщина отношений',          color:'#c7ccd6', icon:'🏰', iconPath:'/event-icons/castle.svg' },
   { key:'viewpoint', label:'Рассвет или закат вместе',     color:'#7bb35a', icon:'🌅', iconPath:'/event-icons/dawn.svg' },
   { key:'sakura',    label:'Весна вместе',                  color:'#8fce78', icon:'🌸', iconPath:'/event-icons/sakura.svg' },
@@ -222,7 +222,7 @@ export function buildTile(id, type, q, r){
     bike: 0x6fa85a, gift: 0xd05a6a, dinner: 0xd07a96,
     spontan: 0xe0b84a, nature: 0x6fae55, newthing: 0x9a7ad0, buy: 0xd88a5a,
     picnic: 0x8fc24a, prazdnik: 0xb187d6, osobenno: 0xd0473f, svidanie: 0xcf5f80, newstep: 0x9c6b42,
-    dance: 0xb85fc0
+    dance: 0xf2b0cf
   };
   const topColor = baseColors[type] || 0x7fae5c;
   const sideColor = shade(topColor, 0.5);
