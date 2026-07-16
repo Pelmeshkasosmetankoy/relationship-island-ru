@@ -35,8 +35,12 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // cap for phone perf
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // cap for phone perf
   renderer.shadowMap.enabled = true;
+  // Солнце и тайлы статичны, поэтому не пересчитываем карту теней каждый кадр —
+  // обновляем только когда геометрия двигается (появление/сбор тайлов). При
+  // вращении камеры тени не меняются → пропускаем целый проход отрисовки.
+  renderer.shadowMap.autoUpdate = false;
   renderer.localClippingEnabled = true; // per-tile hexagon clipping of models
   container.appendChild(renderer.domElement);
 
@@ -217,11 +221,15 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   const clock = new THREE.Clock();
   let prevT = 0;
   let frameId;
+  let shadowWarmup = 90; // первые ~1.5 с рисуем тени каждый кадр (тайлы/модели догружаются)
   function animate() {
     frameId = requestAnimationFrame(animate);
     const t = clock.getElapsedTime();
     const dt = Math.min(t - prevT, 0.05);
     prevT = t;
+    // тени пересчитываем только пока тайлы двигаются (появляются/собираются)
+    if (shadowWarmup > 0) { renderer.shadowMap.needsUpdate = true; shadowWarmup--; }
+    if (dynamic.tileArrivals.size || dynamic.gather) renderer.shadowMap.needsUpdate = true;
     islandGroup.children.forEach((g) => {
       if (g.userData.crystal) g.userData.crystal.rotation.y += 0.015;
     });
