@@ -61,6 +61,7 @@ export const TILE_MODELS = {
   osobenno:  { url: '/models/osobenno.glb',    hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   svidanie:  { url: '/models/svidanie.glb',    hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   newstep:   { url: '/models/newstep.glb',     hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
+  dance:     { url: '/models/dance.glb',        hideBase: true, yOffset: 0.6, scaleMul: 0.85 },
   castle:    { url: '/models/castle.glb',    hideBase: true, roundClip: true },
   viewpoint: { url: '/models/viewpoint.glb', hideBase: true },
   sakura:    { url: '/models/sakura2.glb',   hideBase: true },
