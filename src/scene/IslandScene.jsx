@@ -43,7 +43,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   // Диагностический счётчик FPS (кадров/с). Показывает, тяжело ли телефону
   // рисовать сцену: ~55–60 — плавно, 25–40 — заметные лаги. Убрать позже.
   const fpsEl = document.createElement('div');
-  fpsEl.style.cssText = 'position:fixed;top:10px;left:10px;z-index:99999;background:rgba(0,0,0,0.55);color:#fff;font:600 12px monospace;padding:3px 8px;border-radius:7px;pointer-events:none';
+  fpsEl.style.cssText = 'position:fixed;top:70px;left:10px;z-index:99999;background:rgba(0,0,0,0.55);color:#fff;font:600 12px monospace;padding:3px 8px;border-radius:7px;pointer-events:none';
   fpsEl.textContent = 'FPS —';
   container.appendChild(fpsEl);
   let fpsFrames = 0, fpsLast = performance.now();
