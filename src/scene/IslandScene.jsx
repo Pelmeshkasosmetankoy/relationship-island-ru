@@ -35,7 +35,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // cap for phone perf
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // cap for phone perf
   renderer.shadowMap.enabled = true;
   // Солнце и тайлы статичны, поэтому не пересчитываем карту теней каждый кадр —
   // обновляем только когда геометрия двигается (появление/сбор тайлов). При
