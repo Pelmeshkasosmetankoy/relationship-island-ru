@@ -25,7 +25,7 @@ export const TYPES = [
   { key:'movein',    label:'Съехались',                    color:'#d0a878', icon:'🏡' },
   { key:'pet',       label:'Завели питомца',               color:'#c98f5c', icon:'🐾' },
   { key:'bike',      label:'Катались на велосипеде',       color:'#6fa85a', icon:'🚴' },
-  { key:'gift',      label:'Дарят подарки',                color:'#d05a6a', icon:'🎁' },
+  { key:'gift',      label:'Подарили подарки',             color:'#d05a6a', icon:'🎁' },
   { key:'dinner',    label:'Вкусно поели',                 color:'#d07a96', icon:'🍽️' },
   { key:'spontan',   label:'Что-то спонтанное',            color:'#e0b84a', icon:'⚡' },
   { key:'nature',    label:'Провели время на природе',     color:'#6fae55', icon:'🌿' },
