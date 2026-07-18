@@ -32,7 +32,7 @@ import {
   computeActiveEffects, parseKeySet, stringifyKeySet, packForItem, isPackOwned, FIGURE_CHOICES, PACKS,
   parseJarNotes, stringifyJarNotes,
 } from './lib/economy';
-import { DECOR_ITEMS, parsePlots, stringifyPlots, parseDecor, stringifyDecor, genDecorId } from './lib/decor';
+import { DECOR_ITEMS, parsePlots, stringifyPlots, parseDecor, stringifyDecor, genDecorId, parseInventory, stringifyInventory } from './lib/decor';
 import { hexToPos, TILE_SIZE } from './scene/hexMath';
 import { purchasePack, purchaseAllPacks } from './lib/billing';
 import { setActiveSounds, stopAllSounds } from './lib/soundManager';
@@ -128,6 +128,7 @@ export default function App() {
   const [decorTab, setDecorTab] = useState('plots');
   const [decorPlaceKey, setDecorPlaceKey] = useState(null);
   const [selectedDecorId, setSelectedDecorId] = useState(null);
+  const [pendingPlotRemove, setPendingPlotRemove] = useState(null); // {q,r,count} — подтверждение
   const [showMenu, setShowMenu] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showBottle, setShowBottle] = useState(false);
@@ -603,9 +604,10 @@ export default function App() {
   useEffect(() => { setJarRole(code ? loadJarRole(code) : null); }, [code]);
   useEffect(() => { setJarSeen(code && jarRole ? loadJarSeen(code, jarRole) : []); }, [code, jarRole]);
 
-  // ---- декор: площадки и предметы (в настройках plots / decor_layout) ----
+  // ---- декор: площадки, склад и предметы (в настройках, синхронизируются) ----
   const plots = useMemo(() => parsePlots(settings.plots), [settings.plots]);
   const decor = useMemo(() => parseDecor(settings.decor_layout), [settings.decor_layout]);
+  const inventory = useMemo(() => parseInventory(settings.decor_inventory), [settings.decor_inventory]);
   const decorMode = !showDecor ? null : (decorTab === 'plots' ? 'plots' : 'items');
 
   const handlePlotAdd = useCallback((q, r) => {
@@ -618,29 +620,59 @@ export default function App() {
     });
   }, [code]);
 
-  const handlePlotRemove = useCallback((q, r) => {
+  // убрать площадку и ВЕРНУТЬ стоящий на ней декор на склад
+  const doPlotRemove = useCallback((q, r) => {
     setSettings((prev) => {
       const v = stringifyPlots(parsePlots(prev.plots).filter((p) => !(p.q === q && p.r === r)));
       setSetting(code, 'plots', v).catch((e) => console.warn('Площадки не синхронизированы:', e));
       const next = { ...prev, plots: v };
-      // убрать декор, стоящий на этой площадке
       const c = hexToPos(q, r);
       const d0 = parseDecor(prev.decor_layout);
-      const kept = d0.filter((d) => Math.hypot(d.x - c.x, d.z - c.z) > TILE_SIZE * 0.95);
-      if (kept.length !== d0.length) {
-        const dv = stringifyDecor(kept);
+      const onPlot = d0.filter((d) => Math.hypot(d.x - c.x, d.z - c.z) <= TILE_SIZE * 0.95);
+      if (onPlot.length) {
+        const dv = stringifyDecor(d0.filter((d) => !onPlot.includes(d)));
         setSetting(code, 'decor_layout', dv).catch((e) => console.warn('Декор не синхронизирован:', e));
         next.decor_layout = dv;
+        const inv = parseInventory(prev.decor_inventory);
+        onPlot.forEach((d) => { inv[d.key] = (inv[d.key] || 0) + 1; });
+        const iv = stringifyInventory(inv);
+        setSetting(code, 'decor_inventory', iv).catch((e) => console.warn('Склад не синхронизирован:', e));
+        next.decor_inventory = iv;
       }
       return next;
+    });
+    setPendingPlotRemove(null);
+  }, [code]);
+
+  const handlePlotRemove = useCallback((q, r) => {
+    const c = hexToPos(q, r);
+    const count = parseDecor(settings.decor_layout).filter((d) => Math.hypot(d.x - c.x, d.z - c.z) <= TILE_SIZE * 0.95).length;
+    if (count > 0) setPendingPlotRemove({ q, r, count }); // спросить подтверждение
+    else doPlotRemove(q, r);
+  }, [settings.decor_layout, doPlotRemove]);
+
+  // купить предмет -> на склад (бесплатно пока; цену подключим позже)
+  const handleBuyDecor = useCallback((key) => {
+    setSettings((prev) => {
+      const inv = parseInventory(prev.decor_inventory);
+      inv[key] = (inv[key] || 0) + 1;
+      const iv = stringifyInventory(inv);
+      setSetting(code, 'decor_inventory', iv).catch((e) => console.warn('Склад не синхронизирован:', e));
+      return { ...prev, decor_inventory: iv };
     });
   }, [code]);
 
   const handleDecorPlace = useCallback(({ key, x, z, rot }) => {
     setSettings((prev) => {
+      const inv = parseInventory(prev.decor_inventory);
+      if (!(inv[key] > 0)) return prev; // нет на складе — не ставим
+      inv[key] -= 1;
+      const iv = stringifyInventory(inv);
       const v = stringifyDecor([...parseDecor(prev.decor_layout), { id: genDecorId(), key, x, z, rot }]);
+      setSetting(code, 'decor_inventory', iv).catch((e) => console.warn('Склад не синхронизирован:', e));
       setSetting(code, 'decor_layout', v).catch((e) => console.warn('Декор не синхронизирован:', e));
-      return { ...prev, decor_layout: v };
+      if (!(inv[key] > 0)) setDecorPlaceKey((armed) => (armed === key ? null : armed)); // склад кончился
+      return { ...prev, decor_inventory: iv, decor_layout: v };
     });
   }, [code]);
 
@@ -652,11 +684,22 @@ export default function App() {
     });
   }, [code]);
 
+  // убрать поставленный предмет -> ВЕРНУТЬ на склад
   const handleDecorRemove = useCallback((id) => {
     setSettings((prev) => {
-      const v = stringifyDecor(parseDecor(prev.decor_layout).filter((d) => d.id !== id));
+      const arr = parseDecor(prev.decor_layout);
+      const removed = arr.find((d) => d.id === id);
+      const v = stringifyDecor(arr.filter((d) => d.id !== id));
       setSetting(code, 'decor_layout', v).catch((e) => console.warn('Декор не синхронизирован:', e));
-      return { ...prev, decor_layout: v };
+      const next = { ...prev, decor_layout: v };
+      if (removed) {
+        const inv = parseInventory(prev.decor_inventory);
+        inv[removed.key] = (inv[removed.key] || 0) + 1;
+        const iv = stringifyInventory(inv);
+        setSetting(code, 'decor_inventory', iv).catch((e) => console.warn('Склад не синхронизирован:', e));
+        next.decor_inventory = iv;
+      }
+      return next;
     });
     setSelectedDecorId((sid) => (sid === id ? null : sid));
   }, [code]);
@@ -667,7 +710,7 @@ export default function App() {
     if (d) handleDecorUpdate({ id: d.id, x: d.x, z: d.z, rot: (d.rot || 0) + Math.PI / 6 });
   }, [selectedDecorId, settings.decor_layout, handleDecorUpdate]);
 
-  const closeDecor = useCallback(() => { setShowDecor(false); setDecorPlaceKey(null); setSelectedDecorId(null); }, []);
+  const closeDecor = useCallback(() => { setShowDecor(false); setDecorPlaceKey(null); setSelectedDecorId(null); setPendingPlotRemove(null); }, []);
 
   // open an isolated preview: the real island, purchases and settings are untouched
   const handleTryPack = useCallback((pack) => {
@@ -881,16 +924,31 @@ export default function App() {
       {showDecor && (
         <DecorPanel
           items={DECOR_ITEMS}
+          inventory={inventory}
           tab={decorTab}
           onTab={(t) => { setDecorTab(t); setDecorPlaceKey(null); setSelectedDecorId(null); }}
           placeKey={decorPlaceKey}
-          onPickItem={(k) => { setDecorPlaceKey((cur) => (cur === k ? null : k)); setSelectedDecorId(null); }}
+          onBuy={handleBuyDecor}
+          onPickItem={(k) => { if (!(inventory[k] > 0)) return; setDecorPlaceKey((cur) => (cur === k ? null : k)); setSelectedDecorId(null); }}
           onStopPlacing={() => setDecorPlaceKey(null)}
           selectedId={selectedDecorId}
           onRotate={handleRotateSelected}
           onDelete={() => selectedDecorId && handleDecorRemove(selectedDecorId)}
           onClose={closeDecor}
         />
+      )}
+
+      {pendingPlotRemove && (
+        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setPendingPlotRemove(null)}>
+          <div className="modal" style={{ maxWidth: 360 }}>
+            <h2>Убрать площадку?</h2>
+            <p className="sub">На ней стоит предметов: {pendingPlotRemove.count}. Они вернутся на склад — ничего не потеряется.</p>
+            <div className="modal-actions">
+              <button className="btn" style={{ flex: 1 }} onClick={() => setPendingPlotRemove(null)}>Отмена</button>
+              <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => doPlotRemove(pendingPlotRemove.q, pendingPlotRemove.r)}>Убрать</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {selectedEvent && (

@@ -178,6 +178,7 @@ export const DEFAULT_SETTINGS = {
   name_b: '',               // partner B's name
   plots: '',                // JSON-массив травяных площадок [{q,r}] под декор
   decor_layout: '',         // JSON-массив расставленного декора [{id,key,x,z,rot}]
+  decor_inventory: '',      // JSON-склад: {item_key: count} купленных, но не поставленных
 };
 
 export function settingKeyForCategory(category) {

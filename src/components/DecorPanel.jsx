@@ -3,7 +3,7 @@ import { DECOR_BY_KEY } from '../lib/decor';
 // Нижняя панель обустройства острова: вкладки «Площадки» и «Предметы».
 // Остров над панелью остаётся видимым и кликабельным (расстановка идёт по нему).
 export default function DecorPanel({
-  items, tab, onTab, placeKey, onPickItem, onStopPlacing,
+  items, inventory = {}, tab, onTab, placeKey, onBuy, onPickItem, onStopPlacing,
   selectedId, onRotate, onDelete, onClose,
 }) {
   const placing = !!placeKey;
@@ -44,19 +44,29 @@ export default function DecorPanel({
             </div>
           )}
           {!placing && !selectedId && (
-            <p className="decor-hint">Выберите предмет ниже, чтобы поставить. Нажмите на уже стоящий предмет на острове — чтобы передвинуть, повернуть или удалить.</p>
+            <p className="decor-hint">Купите предмет кнопкой <b>＋</b> — он попадёт на склад. Затем нажмите на него, чтобы ставить на площадки. Нажатие на стоящий предмет — передвинуть/повернуть/удалить.</p>
           )}
           <div className="decor-grid">
-            {items.map((it) => (
-              <button
-                key={it.key}
-                className={`decor-item ${placeKey === it.key ? 'active' : ''}`}
-                onClick={() => onPickItem(it.key)}
-              >
-                <span className="decor-item-icon">{it.icon}</span>
-                <span className="decor-item-name">{it.name}</span>
-              </button>
-            ))}
+            {items.map((it) => {
+              const owned = inventory[it.key] || 0;
+              return (
+                <div key={it.key} className={`decor-item ${placeKey === it.key ? 'active' : ''}`}>
+                  <button
+                    className="decor-item-main"
+                    disabled={owned === 0}
+                    onClick={() => onPickItem(it.key)}
+                    title={owned === 0 ? 'Сначала купите' : 'Ставить'}
+                  >
+                    <span className="decor-item-icon">{it.icon}</span>
+                    <span className="decor-item-name">{it.name}</span>
+                    <span className="decor-item-count">склад: {owned}</span>
+                  </button>
+                  <button className="decor-item-buy" onClick={() => onBuy(it.key)}>
+                    ＋ {it.price > 0 ? `${it.price} 🪙` : 'Купить'}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </>
       )}

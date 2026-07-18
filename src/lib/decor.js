@@ -44,3 +44,21 @@ export function stringifyDecor(arr) {
 export function genDecorId() {
   return 'd' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
 }
+
+// ---------- склад: сколько каждого предмета куплено, но не поставлено ----------
+export function parseInventory(str) {
+  try {
+    const o = JSON.parse(str || '{}');
+    if (!o || typeof o !== 'object') return {};
+    const out = {};
+    for (const k of Object.keys(o)) if (Number.isFinite(o[k]) && o[k] > 0) out[k] = o[k];
+    return out;
+  } catch {
+    return {};
+  }
+}
+export function stringifyInventory(obj) {
+  const out = {};
+  for (const k of Object.keys(obj || {})) if (obj[k] > 0) out[k] = obj[k];
+  return JSON.stringify(out);
+}
