@@ -289,18 +289,26 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   }
 
   // ---- pointer-обработчики (режим 'items': и постановка, и правка) ----
+  // ближайший предмет к точке на земле в радиусе (палец «притягивается»)
+  function nearestDecorId(point, radius) {
+    let best = null, bestD = radius;
+    for (const [id, info] of renderedDecor) {
+      const d = Math.hypot(info.group.position.x - point.x, info.group.position.z - point.z);
+      if (d <= bestD) { bestD = d; best = id; }
+    }
+    return best;
+  }
   function onPointerDown(e) {
     if (decorRT.mode !== 'items') return;
     e.preventDefault();
     renderer.domElement.setPointerCapture?.(e.pointerId);
-    setMouseFromEvent(e);
-    raycaster.setFromCamera(mouse, camera);
-    const hit = raycaster.intersectObjects(decorGroup.children, true)[0];
-    let obj = hit?.object;
-    while (obj && obj.userData.decorId == null) obj = obj.parent;
-    if (obj && obj.userData.decorId != null) {
-      // тап по стоящему предмету -> выбрать и тащить
-      selectDecor(obj.userData.decorId);
+    const g = pointerGround(e);
+    // большой радиус для правки; поменьше, когда в руке новый предмет (чтобы ставить рядом)
+    const radius = decorRT.placeKey ? TILE_SIZE * 0.5 : TILE_SIZE * 0.9;
+    const pick = g ? nearestDecorId(g, radius) : null;
+    if (pick != null) {
+      // тап рядом со стоящим предметом -> выбрать и тащить
+      selectDecor(pick);
       decorRT.dragTarget = 'decor';
       decorRT.dragging = true;
       if (ghost) ghost.visible = false;
