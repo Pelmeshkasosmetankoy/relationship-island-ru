@@ -208,8 +208,12 @@ export function buildTile(id, type, q, r){
   group.position.set(x, 0, z);
   group.userData.tileId = id;
   group.userData.type = type;
+  group.userData.q = q;
+  group.userData.r = r;
+  group.userData.decorable = type === 'grass'; // травяная площадка под декор
 
   const baseColors = {
+    grass: 0x74b85a,
     home: 0xdccf9e, forest: 0x6fa85a, mountains: 0xd7dbe0,
     lake: 0x8fbf7a, city: 0xe0cd9c, milestone: 0x8a76b8,
     starfield: 0x4a3f75, coffee: 0xdec9a0, theater: 0xe0d4b0,

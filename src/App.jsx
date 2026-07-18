@@ -17,6 +17,7 @@ import Salute from './components/Salute';
 import MemoryCalendar from './components/MemoryCalendar';
 import BottleNote from './components/BottleNote';
 import Jar from './components/Jar';
+import DecorPanel from './components/DecorPanel';
 import IslandScene from './scene/IslandScene';
 import {
   createWorld, createWorldInvite, acceptWorldInvite, setRecoveryCode, redeemRecoveryCode, worldExists, joinWorld, fetchMyWorlds,
@@ -31,6 +32,8 @@ import {
   computeActiveEffects, parseKeySet, stringifyKeySet, packForItem, isPackOwned, FIGURE_CHOICES, PACKS,
   parseJarNotes, stringifyJarNotes,
 } from './lib/economy';
+import { DECOR_ITEMS, parsePlots, stringifyPlots, parseDecor, stringifyDecor, genDecorId } from './lib/decor';
+import { hexToPos, TILE_SIZE } from './scene/hexMath';
 import { purchasePack, purchaseAllPacks } from './lib/billing';
 import { setActiveSounds, stopAllSounds } from './lib/soundManager';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -121,6 +124,10 @@ export default function App() {
   const [premiumPack, setPremiumPack] = useState(null);
   const [showPremiumPreview, setShowPremiumPreview] = useState(false);
   const [premiumPreviewPack, setPremiumPreviewPack] = useState(null);
+  const [showDecor, setShowDecor] = useState(false);
+  const [decorTab, setDecorTab] = useState('plots');
+  const [decorPlaceKey, setDecorPlaceKey] = useState(null);
+  const [selectedDecorId, setSelectedDecorId] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showBottle, setShowBottle] = useState(false);
@@ -596,6 +603,72 @@ export default function App() {
   useEffect(() => { setJarRole(code ? loadJarRole(code) : null); }, [code]);
   useEffect(() => { setJarSeen(code && jarRole ? loadJarSeen(code, jarRole) : []); }, [code, jarRole]);
 
+  // ---- декор: площадки и предметы (в настройках plots / decor_layout) ----
+  const plots = useMemo(() => parsePlots(settings.plots), [settings.plots]);
+  const decor = useMemo(() => parseDecor(settings.decor_layout), [settings.decor_layout]);
+  const decorMode = !showDecor ? null : (decorTab === 'plots' ? 'plots' : (decorPlaceKey ? 'place' : 'arrange'));
+
+  const handlePlotAdd = useCallback((q, r) => {
+    setSettings((prev) => {
+      const cur = parsePlots(prev.plots);
+      if (cur.some((p) => p.q === q && p.r === r)) return prev;
+      const v = stringifyPlots([...cur, { q, r }]);
+      setSetting(code, 'plots', v).catch((e) => console.warn('Площадки не синхронизированы:', e));
+      return { ...prev, plots: v };
+    });
+  }, [code]);
+
+  const handlePlotRemove = useCallback((q, r) => {
+    setSettings((prev) => {
+      const v = stringifyPlots(parsePlots(prev.plots).filter((p) => !(p.q === q && p.r === r)));
+      setSetting(code, 'plots', v).catch((e) => console.warn('Площадки не синхронизированы:', e));
+      const next = { ...prev, plots: v };
+      // убрать декор, стоящий на этой площадке
+      const c = hexToPos(q, r);
+      const d0 = parseDecor(prev.decor_layout);
+      const kept = d0.filter((d) => Math.hypot(d.x - c.x, d.z - c.z) > TILE_SIZE * 0.95);
+      if (kept.length !== d0.length) {
+        const dv = stringifyDecor(kept);
+        setSetting(code, 'decor_layout', dv).catch((e) => console.warn('Декор не синхронизирован:', e));
+        next.decor_layout = dv;
+      }
+      return next;
+    });
+  }, [code]);
+
+  const handleDecorPlace = useCallback(({ key, x, z, rot }) => {
+    setSettings((prev) => {
+      const v = stringifyDecor([...parseDecor(prev.decor_layout), { id: genDecorId(), key, x, z, rot }]);
+      setSetting(code, 'decor_layout', v).catch((e) => console.warn('Декор не синхронизирован:', e));
+      return { ...prev, decor_layout: v };
+    });
+  }, [code]);
+
+  const handleDecorUpdate = useCallback(({ id, x, z, rot }) => {
+    setSettings((prev) => {
+      const v = stringifyDecor(parseDecor(prev.decor_layout).map((d) => (d.id === id ? { ...d, x, z, rot } : d)));
+      setSetting(code, 'decor_layout', v).catch((e) => console.warn('Декор не синхронизирован:', e));
+      return { ...prev, decor_layout: v };
+    });
+  }, [code]);
+
+  const handleDecorRemove = useCallback((id) => {
+    setSettings((prev) => {
+      const v = stringifyDecor(parseDecor(prev.decor_layout).filter((d) => d.id !== id));
+      setSetting(code, 'decor_layout', v).catch((e) => console.warn('Декор не синхронизирован:', e));
+      return { ...prev, decor_layout: v };
+    });
+    setSelectedDecorId((sid) => (sid === id ? null : sid));
+  }, [code]);
+
+  const handleRotateSelected = useCallback(() => {
+    if (!selectedDecorId) return;
+    const d = parseDecor(settings.decor_layout).find((x) => x.id === selectedDecorId);
+    if (d) handleDecorUpdate({ id: d.id, x: d.x, z: d.z, rot: (d.rot || 0) + Math.PI / 6 });
+  }, [selectedDecorId, settings.decor_layout, handleDecorUpdate]);
+
+  const closeDecor = useCallback(() => { setShowDecor(false); setDecorPlaceKey(null); setSelectedDecorId(null); }, []);
+
   // open an isolated preview: the real island, purchases and settings are untouched
   const handleTryPack = useCallback((pack) => {
     setPremiumPreviewPack(pack);
@@ -708,6 +781,7 @@ export default function App() {
     if (editingEvent) { setEditingEvent(null); return true; }
     if (showAdd) { setShowAdd(false); return true; }
     if (selectedEvent) { setSelectedEvent(null); return true; }
+    if (showDecor) { closeDecor(); return true; }
     if (showShop) { setShowShop(false); return true; }
     if (showWishes) { setShowWishes(false); return true; }
     if (showFigures) { setShowFigures(false); return true; }
@@ -776,18 +850,48 @@ export default function App() {
         activeGirl={visibleActiveGirl}
         activeBoat={settings.active_boat}
         figureColors={figureColors}
+        plots={plots}
+        decor={decor}
+        decorMode={decorMode}
+        decorPlaceKey={decorPlaceKey}
+        onPlotAdd={handlePlotAdd}
+        onPlotRemove={handlePlotRemove}
+        onDecorPlace={handleDecorPlace}
+        onDecorUpdate={handleDecorUpdate}
+        onDecorRemove={handleDecorRemove}
+        onDecorSelect={setSelectedDecorId}
       />
 
-      <div className="topbar">
-        <div className="topbar-right">
-          <button className="coin-btn mono" onClick={() => setShowShop(true)} title="Лавка улучшений">
-            🪙 {balance}
-          </button>
-        </div>
-      </div>
-      <button className="menu-btn" onClick={() => setShowMenu(true)} aria-label="Меню">☰</button>
-      <button className="fab-add" onClick={() => setShowAdd(true)}>{tr('add_event')}</button>
-      <div className="rotate-hint">{tr('rotate_hint')}</div>
+      {!showDecor && (
+        <>
+          <div className="topbar">
+            <div className="topbar-right">
+              <button className="coin-btn mono" onClick={() => setShowShop(true)} title="Лавка улучшений">
+                🪙 {balance}
+              </button>
+            </div>
+          </div>
+          <button className="menu-btn" onClick={() => setShowMenu(true)} aria-label="Меню">☰</button>
+          <button className="fab-decor" onClick={() => setShowDecor(true)} aria-label="Обустроить остров">🪴</button>
+          <button className="fab-add" onClick={() => setShowAdd(true)}>{tr('add_event')}</button>
+          <div className="rotate-hint">{tr('rotate_hint')}</div>
+        </>
+      )}
+
+      {showDecor && (
+        <DecorPanel
+          items={DECOR_ITEMS}
+          tab={decorTab}
+          onTab={(t) => { setDecorTab(t); setDecorPlaceKey(null); setSelectedDecorId(null); }}
+          placeKey={decorPlaceKey}
+          onPickItem={(k) => { setDecorPlaceKey(k); setSelectedDecorId(null); }}
+          onStopPlacing={() => setDecorPlaceKey(null)}
+          selectedId={selectedDecorId}
+          onRotate={handleRotateSelected}
+          onDelete={() => selectedDecorId && handleDecorRemove(selectedDecorId)}
+          onClose={closeDecor}
+        />
+      )}
 
       {selectedEvent && (
         <DetailPanel

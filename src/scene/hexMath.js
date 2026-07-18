@@ -1,6 +1,6 @@
 export const TILE_SIZE = 2.0;
 
-const HEX_DIRS = [
+export const HEX_DIRS = [
   { q: 1, r: 0 }, { q: 1, r: -1 }, { q: 0, r: -1 },
   { q: -1, r: 0 }, { q: -1, r: 1 }, { q: 0, r: 1 },
 ];

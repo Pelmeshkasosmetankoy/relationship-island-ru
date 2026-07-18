@@ -176,6 +176,8 @@ export const DEFAULT_SETTINGS = {
   jar_notes_b: '',          // reasons about partner B: B pulls from here, A writes here
   name_a: '',               // partner A's name (shared, so both see it)
   name_b: '',               // partner B's name
+  plots: '',                // JSON-массив травяных площадок [{q,r}] под декор
+  decor_layout: '',         // JSON-массив расставленного декора [{id,key,x,z,rot}]
 };
 
 export function settingKeyForCategory(category) {

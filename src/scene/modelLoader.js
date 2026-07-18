@@ -264,3 +264,33 @@ export function getEffectModel(key, targetSize = 1) {
   obj.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; } });
   return obj;
 }
+
+// ---------- декор-предметы (public/decor) — грузятся лениво по URL ----------
+const decorSourceCache = new Map();
+function fitDecor(src, size) {
+  const obj = cloneSkeleton(src);
+  obj.updateMatrixWorld(true);
+  const s = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3());
+  const maxDim = Math.max(s.x, s.y, s.z) || 1;
+  obj.scale.setScalar(size / maxDim);
+  obj.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(obj);
+  const c = b.getCenter(new THREE.Vector3());
+  obj.position.x -= c.x;
+  obj.position.z -= c.z;
+  obj.position.y -= b.min.y; // дно на y=0
+  obj.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; } });
+  return obj;
+}
+// Возвращает Promise готового экземпляра модели декора (или null). size — высота в мире.
+export function getDecorModel(url, size = 1) {
+  return new Promise((resolve) => {
+    if (decorSourceCache.has(url)) { resolve(fitDecor(decorSourceCache.get(url), size)); return; }
+    loader.load(
+      url,
+      (g) => { decorSourceCache.set(url, g.scene); resolve(fitDecor(g.scene, size)); },
+      undefined,
+      (err) => { console.warn('Модель декора не загрузилась:', url, err); resolve(null); }
+    );
+  });
+}
