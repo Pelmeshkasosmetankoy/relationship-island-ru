@@ -606,7 +606,7 @@ export default function App() {
   // ---- декор: площадки и предметы (в настройках plots / decor_layout) ----
   const plots = useMemo(() => parsePlots(settings.plots), [settings.plots]);
   const decor = useMemo(() => parseDecor(settings.decor_layout), [settings.decor_layout]);
-  const decorMode = !showDecor ? null : (decorTab === 'plots' ? 'plots' : (decorPlaceKey ? 'place' : 'arrange'));
+  const decorMode = !showDecor ? null : (decorTab === 'plots' ? 'plots' : 'items');
 
   const handlePlotAdd = useCallback((q, r) => {
     setSettings((prev) => {
@@ -884,7 +884,7 @@ export default function App() {
           tab={decorTab}
           onTab={(t) => { setDecorTab(t); setDecorPlaceKey(null); setSelectedDecorId(null); }}
           placeKey={decorPlaceKey}
-          onPickItem={(k) => { setDecorPlaceKey(k); setSelectedDecorId(null); }}
+          onPickItem={(k) => { setDecorPlaceKey((cur) => (cur === k ? null : k)); setSelectedDecorId(null); }}
           onStopPlacing={() => setDecorPlaceKey(null)}
           selectedId={selectedDecorId}
           onRotate={handleRotateSelected}

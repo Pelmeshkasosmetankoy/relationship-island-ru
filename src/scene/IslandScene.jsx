@@ -81,8 +81,8 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   }
 
   function handleClick(e) {
-    // в режимах расстановки/правки декором управляют pointer-обработчики ниже
-    if (decorRT.mode === 'place' || decorRT.mode === 'arrange') return;
+    // на вкладке «Предметы» декором управляют pointer-обработчики ниже
+    if (decorRT.mode === 'items') return;
     setMouseFromEvent(e);
     raycaster.setFromCamera(mouse, camera);
     if (decorRT.mode === 'plots') { handlePlotsClick(); return; }
@@ -123,7 +123,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   const gp = new THREE.Vector3();
   const decorRT = {
     mode: null, placeKey: null, selectedId: null, eventCount: 0, plots: [],
-    cb: {}, dragging: false, lastValid: false,
+    cb: {}, dragging: false, lastValid: false, dragTarget: null,
   };
   let ghost = null;
   const selectionRing = new THREE.Mesh(
@@ -134,16 +134,26 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   selectionRing.visible = false;
   scene.add(selectionRing);
 
+  // клетки дома+событий с ОБХОДОМ площадок (события не занимают клетку площадки)
+  function islandEventCells() {
+    const plotSet = new Set(decorRT.plots.map((p) => plotKey(p.q, p.r)));
+    const cells = [SPIRAL[0]]; // дом (0,0)
+    for (let i = 1; i < SPIRAL.length && cells.length <= decorRT.eventCount; i++) {
+      const c = SPIRAL[i];
+      if (plotSet.has(plotKey(c.q, c.r))) continue;
+      cells.push(c);
+    }
+    return cells; // дом + до eventCount событий
+  }
   function occupiedKeys() {
     const set = new Set();
-    const cells = SPIRAL.slice(0, decorRT.eventCount + 1); // дом(0,0) + события
-    cells.forEach((c) => set.add(plotKey(c.q, c.r)));
+    islandEventCells().forEach((c) => set.add(plotKey(c.q, c.r)));
     decorRT.plots.forEach((p) => set.add(plotKey(p.q, p.r)));
     return set;
   }
   function freeAdjacentCells() {
     const occ = occupiedKeys();
-    const eventCells = SPIRAL.slice(0, decorRT.eventCount + 1);
+    const eventCells = islandEventCells();
     const out = new Map();
     for (const cell of [...eventCells, ...decorRT.plots]) {
       for (const d of HEX_DIRS) {
@@ -278,32 +288,37 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     if (disc) disc.material.color.setHex(valid ? 0x6ad07a : 0xe06a6a);
   }
 
-  // ---- pointer-обработчики (работают в режимах place/arrange) ----
+  // ---- pointer-обработчики (режим 'items': и постановка, и правка) ----
   function onPointerDown(e) {
-    if (decorRT.mode !== 'place' && decorRT.mode !== 'arrange') return;
+    if (decorRT.mode !== 'items') return;
     e.preventDefault();
     renderer.domElement.setPointerCapture?.(e.pointerId);
-    if (decorRT.mode === 'place') {
+    setMouseFromEvent(e);
+    raycaster.setFromCamera(mouse, camera);
+    const hit = raycaster.intersectObjects(decorGroup.children, true)[0];
+    let obj = hit?.object;
+    while (obj && obj.userData.decorId == null) obj = obj.parent;
+    if (obj && obj.userData.decorId != null) {
+      // тап по стоящему предмету -> выбрать и тащить
+      selectDecor(obj.userData.decorId);
+      decorRT.dragTarget = 'decor';
+      decorRT.dragging = true;
+      if (ghost) ghost.visible = false;
+    } else if (decorRT.placeKey) {
+      // ставим новый предмет (перетаскивание призрака)
+      selectDecor(null);
+      decorRT.dragTarget = 'ghost';
       decorRT.dragging = true;
       moveGhost(e);
-    } else { // arrange
-      setMouseFromEvent(e);
-      raycaster.setFromCamera(mouse, camera);
-      const hit = raycaster.intersectObjects(decorGroup.children, true)[0];
-      let obj = hit?.object;
-      while (obj && obj.userData.decorId == null) obj = obj.parent;
-      if (obj && obj.userData.decorId != null) {
-        selectDecor(obj.userData.decorId);
-        decorRT.dragging = true;
-      } else {
-        selectDecor(null);
-      }
+    } else {
+      selectDecor(null);
+      decorRT.dragTarget = null;
     }
   }
   function onPointerMove(e) {
     if (!decorRT.dragging) return;
-    if (decorRT.mode === 'place') { moveGhost(e); return; }
-    if (decorRT.mode === 'arrange' && decorRT.selectedId) {
+    if (decorRT.dragTarget === 'ghost') { moveGhost(e); return; }
+    if (decorRT.dragTarget === 'decor' && decorRT.selectedId) {
       const g = pointerGround(e);
       const info = renderedDecor.get(decorRT.selectedId);
       if (g && info) {
@@ -316,17 +331,19 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   function onPointerUp(e) {
     if (!decorRT.dragging) return;
     decorRT.dragging = false;
-    if (decorRT.mode === 'place') {
+    const target = decorRT.dragTarget;
+    decorRT.dragTarget = null;
+    if (target === 'ghost') {
       if (decorRT.lastValid && ghost) {
         decorRT.cb.onDecorPlace?.({ key: decorRT.placeKey, x: ghost.position.x, z: ghost.position.z, rot: ghost.rotation.y });
       }
-    } else if (decorRT.mode === 'arrange' && decorRT.selectedId) {
+    } else if (target === 'decor' && decorRT.selectedId) {
       const info = renderedDecor.get(decorRT.selectedId);
       const valid = overPlot(e);
       if (info && valid) {
         decorRT.cb.onDecorUpdate?.({ id: decorRT.selectedId, x: info.group.position.x, z: info.group.position.z, rot: info.group.rotation.y });
       } else if (info) {
-        info.group.position.set(info.x, BASE_TOP, info.z); // вернуть на место
+        info.group.position.set(info.x, BASE_TOP, info.z); // вернуть на место, если бросили не на площадку
         positionSelectionRing();
       }
       selectionRing.material.color.setHex(0xffd479);
@@ -361,10 +378,10 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     decorRT.mode = mode || null;
     decorRT.placeKey = placeKey || null;
     decorRT.dragging = false;
-    controls.enabled = (mode == null || mode === 'plots'); // камера свободна только вне расстановки
-    clearGhost();
-    if (mode !== 'arrange') selectDecor(null);
-    if (mode === 'place' && placeKey) makeGhost(placeKey);
+    decorRT.dragTarget = null;
+    controls.enabled = (mode == null || mode === 'plots'); // камера свободна только вне вкладки «Предметы»
+    if (mode === 'items' && placeKey) makeGhost(placeKey); else clearGhost();
+    if (mode == null || mode === 'plots') selectDecor(null);
     refreshMarkers();
   }
   function setDecorCallbacks(cb) { decorRT.cb = cb || {}; }
@@ -709,17 +726,26 @@ export default function IslandScene({ events, onTileClick, onBottleClick, highli
       rendered.clear();
     }
 
+    // клетки под события с ОБХОДОМ площадок, чтобы новый остров не «съедал» площадку
+    const plotSet = new Set((plots || []).map((p) => plotKey(p.q, p.r)));
+    const eventCells = [];
+    for (let i = 1; i < SPIRAL.length && eventCells.length < events.length; i++) {
+      const c = SPIRAL[i];
+      if (plotSet.has(plotKey(c.q, c.r))) continue;
+      eventCells.push(c);
+    }
+
     const shouldAnimateNewTiles = hasSyncedEvents.current && !needsRebuild;
     desired.forEach((d) => {
       if (rendered.has(d.id)) return;
-      const pos = SPIRAL[d.index + 1] || SPIRAL[SPIRAL.length - 1];
+      const pos = eventCells[d.index] || SPIRAL[SPIRAL.length - 1];
       const tile = buildTile(d.id, d.type, pos.q, pos.r);
       islandGroup.add(tile);
       rendered.set(d.id, { group: tile, type: d.type, index: d.index });
       if (shouldAnimateNewTiles) s.playTileArrival(tile);
     });
     hasSyncedEvents.current = true;
-  }, [events, ready]);
+  }, [events, ready, plots]);
 
   useEffect(() => {
     const s = sceneRef.current;

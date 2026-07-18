@@ -26,29 +26,33 @@ export default function DecorPanel({
         </p>
       )}
 
-      {tab === 'items' && placing && (
-        <div className="decor-placing">
-          <p className="decor-hint">Ставлю: <b>{DECOR_BY_KEY[placeKey]?.name || placeKey}</b>. Перетащите на травяную площадку. Зелёным — можно, красным — нельзя.</p>
-          <button className="btn btn-primary" onClick={onStopPlacing}>Готово</button>
-        </div>
-      )}
-
-      {tab === 'items' && !placing && (
+      {tab === 'items' && (
         <>
-          {selectedId ? (
+          {placing && (
+            <div className="decor-placing">
+              <p className="decor-hint">Ставлю: <b>{DECOR_BY_KEY[placeKey]?.name || placeKey}</b>. Перетащите на травяную площадку — зелёным можно, красным нельзя. Можно ставить сколько угодно.</p>
+              <button className="btn" onClick={onStopPlacing}>Хватит ставить</button>
+            </div>
+          )}
+          {selectedId && (
             <div className="decor-edit">
-              <p className="decor-hint">Выбран предмет. Перетащите, чтобы передвинуть.</p>
+              <p className="decor-hint">Выбран предмет — перетащите, чтобы передвинуть.</p>
               <div className="decor-edit-btns">
                 <button className="btn" onClick={onRotate}>↻ Повернуть</button>
                 <button className="btn btn-danger" onClick={onDelete}>🗑 Удалить</button>
               </div>
             </div>
-          ) : (
-            <p className="decor-hint">Выберите предмет, чтобы поставить. Нажмите на уже стоящий предмет на острове, чтобы его передвинуть, повернуть или удалить.</p>
+          )}
+          {!placing && !selectedId && (
+            <p className="decor-hint">Выберите предмет ниже, чтобы поставить. Нажмите на уже стоящий предмет на острове — чтобы передвинуть, повернуть или удалить.</p>
           )}
           <div className="decor-grid">
             {items.map((it) => (
-              <button key={it.key} className="decor-item" onClick={() => onPickItem(it.key)}>
+              <button
+                key={it.key}
+                className={`decor-item ${placeKey === it.key ? 'active' : ''}`}
+                onClick={() => onPickItem(it.key)}
+              >
                 <span className="decor-item-icon">{it.icon}</span>
                 <span className="decor-item-name">{it.name}</span>
               </button>
