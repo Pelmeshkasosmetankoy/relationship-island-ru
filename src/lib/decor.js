@@ -5,7 +5,11 @@
 // Каталог. Расширяется добавлением строки + модели в public/decor.
 //   size — примерная высота модели в мире (тайл = 2.0, верх базы y=0.6)
 export const DECOR_ITEMS = [
-  { key: 'lamp', name: 'Фонарь', url: '/decor/lamp.glb', icon: '🏮', price: 0, size: 1.15 },
+  { key: 'lamp',   name: 'Фонарь',  url: '/decor/lamp.glb',    icon: '🏮', price: 0, size: 1.15 },
+  { key: 'bench',  name: 'Лавочка', url: '/decor/lavka.glb',   icon: '🪑', price: 0, size: 1.3 },
+  { key: 'gazebo', name: 'Беседка', url: '/decor/besedka.glb', icon: '⛱️', price: 0, size: 2.2 },
+  { key: 'swing',  name: 'Качели',  url: '/decor/kacheli.glb', icon: '🎠', price: 0, size: 1.7 },
+  { key: 'arch',   name: 'Арка',    url: '/decor/arka.glb',    icon: '🏛️', price: 0, size: 2.2 },
 ];
 
 export const DECOR_BY_KEY = Object.fromEntries(DECOR_ITEMS.map((d) => [d.key, d]));
