@@ -203,7 +203,6 @@ input[type=text].auth-input,input[type=password].auth-input{ text-transform:none
 .account-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; min-height:34px; color:var(--parchment-dim); font-size:13px; }
 .account-row + .account-row{ border-top:1px solid rgba(212,175,106,0.14); padding-top:8px; margin-top:8px; }
 .account-row strong{ color:var(--parchment); font-size:13px; text-align:right; word-break:break-word; }
-.account-box .settings-hint{ margin:8px 0 0; }
 .export-row{ display:flex; gap:10px; margin-bottom:8px; }
 .export-row .btn{ margin-bottom:0; }
 .export-status{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--parchment-dim); margin:0 0 16px; min-height:18px; }

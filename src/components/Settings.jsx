@@ -116,7 +116,6 @@ export default function Settings({ lang, onSetLang, onAbout, onClose, events, co
             <span>{tr('set_account_login')}</span>
             <strong className="mono">{accountLogin || tr('set_account_unknown')}</strong>
           </div>
-          <p className="settings-hint">{tr('set_account_password_hint')}</p>
         </div>
 
         <label className="field-label">{tr('export_heading')}</label>
