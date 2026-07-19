@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { tr } from '../i18n';
 import { useSwipeDownClose } from '../lib/gestures';
-import { exportPdf, exportZip } from '../lib/exporter';
 
 // pretty-print the raw 14-char recovery code as XXXX-XXXXX-XXXXX
 function formatRecovery(rc) {
@@ -9,7 +8,7 @@ function formatRecovery(rc) {
   return [s.slice(0, 4), s.slice(4, 9), s.slice(9, 14)].filter(Boolean).join('-');
 }
 
-export default function Settings({ lang, onSetLang, onAbout, onClose, events, code, islandName, onSetIslandName, onCreateRecovery, onDeleteAccount }) {
+export default function Settings({ lang, onSetLang, onAbout, onClose, events, code, islandName, accountLogin = '', onSetIslandName, onCreateRecovery, onDeleteAccount }) {
   const { elRef, swipeHandlers } = useSwipeDownClose(onClose);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);
@@ -65,6 +64,7 @@ export default function Settings({ lang, onSetLang, onAbout, onClose, events, co
     setBusy(true);
     setStatus(tr('export_working'));
     try {
+      const { exportPdf, exportZip } = await import('../lib/exporter');
       const onProgress = (i, n) => setStatus(tr('export_progress', { i, n }));
       if (kind === 'pdf') await exportPdf(events, code, onProgress);
       else await exportZip(events, code, onProgress);
@@ -79,7 +79,7 @@ export default function Settings({ lang, onSetLang, onAbout, onClose, events, co
 
   return (
     <div className="overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" ref={elRef} {...swipeHandlers}>
+      <div className="modal settings-modal" ref={elRef} {...swipeHandlers}>
         <h2>{tr('set_title')}</h2>
 
         <label className="field-label">{tr('set_language')}</label>
@@ -109,6 +109,15 @@ export default function Settings({ lang, onSetLang, onAbout, onClose, events, co
           onBlur={() => { if ((name || '').trim() !== (islandName || '')) onSetIslandName((name || '').trim()); }}
         />
         <p className="settings-hint" style={{ margin: '0 0 16px' }}>{tr('set_island_name_hint')}</p>
+
+        <label className="field-label">{tr('set_account_heading')}</label>
+        <div className="account-box">
+          <div className="account-row">
+            <span>{tr('set_account_login')}</span>
+            <strong className="mono">{accountLogin || tr('set_account_unknown')}</strong>
+          </div>
+          <p className="settings-hint">{tr('set_account_password_hint')}</p>
+        </div>
 
         <label className="field-label">{tr('export_heading')}</label>
         <p className="settings-hint" style={{ margin: '0 0 10px' }}>{tr('export_sub')}</p>

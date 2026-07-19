@@ -84,7 +84,9 @@ export default function DecorPanel({
                     onClick={() => onPickItem(it.key)}
                     title={owned === 0 ? 'Сначала купите' : 'Ставить'}
                   >
-                    <span className="decor-item-icon">{it.icon}</span>
+                    <span className="decor-item-icon">
+                      {it.iconPath ? <img src={it.iconPath} alt="" /> : it.icon}
+                    </span>
                     <span className="decor-item-name">{it.name}</span>
                     <span className="decor-item-count">склад: {owned}</span>
                   </button>

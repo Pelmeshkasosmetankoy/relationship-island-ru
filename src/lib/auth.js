@@ -9,9 +9,53 @@ import { supabase } from './supabaseClient';
 // Supabase persists the session in localStorage, so people stay logged in.
 
 const INTERNAL_DOMAIN = 'ostrov.local';
+// Only the login is remembered, so Settings can show "you are signed in as …".
+// The password is never stored: anything in localStorage is readable by any
+// script on the page and by anyone holding the unlocked device.
+const SAVED_LOGIN_KEY = 'authLogin';
 
 function loginToEmail(login) {
   return `${login.trim().toLowerCase()}@${INTERNAL_DOMAIN}`;
+}
+
+export function loginFromEmail(email) {
+  const suffix = `@${INTERNAL_DOMAIN}`;
+  if (typeof email !== 'string') return '';
+  return email.endsWith(suffix) ? email.slice(0, -suffix.length) : email;
+}
+
+// An earlier build stored { login, password } under 'authCredentials'. Wipe it on
+// startup so a password that was already written to this device does not linger.
+try {
+  const legacy = localStorage.getItem('authCredentials');
+  if (legacy) {
+    try {
+      const { login } = JSON.parse(legacy) || {};
+      if (login && !localStorage.getItem(SAVED_LOGIN_KEY)) localStorage.setItem(SAVED_LOGIN_KEY, login);
+    } catch { /* unparseable — drop it anyway */ }
+    localStorage.removeItem('authCredentials');
+  }
+} catch { /* storage unavailable */ }
+
+export function getSavedLogin() {
+  try {
+    return localStorage.getItem(SAVED_LOGIN_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function saveLogin(login) {
+  try {
+    localStorage.setItem(SAVED_LOGIN_KEY, login.trim().toLowerCase());
+  } catch { /* storage unavailable */ }
+}
+
+export function clearSavedLogin() {
+  try {
+    localStorage.removeItem(SAVED_LOGIN_KEY);
+    localStorage.removeItem('authCredentials'); // legacy key that also held the password
+  } catch { /* storage unavailable */ }
 }
 
 export async function getSession() {
@@ -32,6 +76,7 @@ export function onAuthChange(callback) {
 export async function signUpWithLogin(login, password) {
   const { data, error } = await supabase.auth.signUp({ email: loginToEmail(login), password });
   if (error) throw error;
+  if (data?.session) saveLogin(login);
   return data;
 }
 
@@ -40,9 +85,11 @@ export async function signUpWithLogin(login, password) {
 export async function signInWithLogin(login, password) {
   const { error } = await supabase.auth.signInWithPassword({ email: loginToEmail(login), password });
   if (error) throw error;
+  saveLogin(login);
 }
 
 export async function signOut() {
+  clearSavedLogin();
   await supabase.auth.signOut();
 }
 

@@ -24,6 +24,38 @@ function easeInOutSine(t) {
   return -(Math.cos(Math.PI * t) - 1) / 2;
 }
 
+function isFiniteCell(cell) {
+  return cell && Number.isFinite(Number(cell.q)) && Number.isFinite(Number(cell.r));
+}
+
+function computeEventCells(events = [], plots = [], eventPositions = {}) {
+  const occupied = new Set([plotKey(0, 0)]);
+  (plots || []).forEach((p) => { if (isFiniteCell(p)) occupied.add(plotKey(Number(p.q), Number(p.r))); });
+  const cells = [SPIRAL[0]];
+  let spiralIndex = 1;
+
+  (events || []).forEach((event) => {
+    const saved = eventPositions?.[event.id];
+    let cell = null;
+    if (isFiniteCell(saved)) {
+      const q = Number(saved.q);
+      const r = Number(saved.r);
+      const key = plotKey(q, r);
+      if (!occupied.has(key)) cell = { q, r };
+    }
+    while (!cell && spiralIndex < SPIRAL.length) {
+      const candidate = SPIRAL[spiralIndex++];
+      const key = plotKey(candidate.q, candidate.r);
+      if (!occupied.has(key)) cell = candidate;
+    }
+    if (!cell) cell = SPIRAL[SPIRAL.length - 1];
+    occupied.add(plotKey(cell.q, cell.r));
+    cells.push(cell);
+  });
+
+  return cells;
+}
+
 // Builds the renderer, camera, lights and controls and starts the render loop.
 // Also exposes applyUpgrades() on sceneRef so React can drive the shop upgrades.
 function createScene(container, onTileClick, onBottleClick, sceneRef) {
@@ -85,6 +117,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     if (decorRT.mode === 'items') return;
     setMouseFromEvent(e);
     raycaster.setFromCamera(mouse, camera);
+    if (decorRT.mode === 'event') { handleEventPlacementClick(); return; }
     if (decorRT.mode === 'plots') { handlePlotsClick(); return; }
     // the message bottle floats in the sea (not part of the island); if it's tapped,
     // open its note editor instead of hit-testing the tiles
@@ -122,7 +155,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -BASE_TOP);
   const gp = new THREE.Vector3();
   const decorRT = {
-    mode: null, placeKey: null, selectedId: null, eventCount: 0, plots: [],
+    mode: null, placeKey: null, selectedId: null, events: [], eventPositions: {}, plots: [],
     cb: {}, dragging: false, lastValid: false, dragTarget: null, plotColor: '',
   };
   let ghost = null;
@@ -136,14 +169,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
 
   // клетки дома+событий с ОБХОДОМ площадок (события не занимают клетку площадки)
   function islandEventCells() {
-    const plotSet = new Set(decorRT.plots.map((p) => plotKey(p.q, p.r)));
-    const cells = [SPIRAL[0]]; // дом (0,0)
-    for (let i = 1; i < SPIRAL.length && cells.length <= decorRT.eventCount; i++) {
-      const c = SPIRAL[i];
-      if (plotSet.has(plotKey(c.q, c.r))) continue;
-      cells.push(c);
-    }
-    return cells; // дом + до eventCount событий
+    return computeEventCells(decorRT.events, decorRT.plots, decorRT.eventPositions);
   }
   function occupiedKeys() {
     const set = new Set();
@@ -168,12 +194,16 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   }
   function refreshMarkers() {
     clearMarkers();
-    if (decorRT.mode !== 'plots') return;
+    if (decorRT.mode !== 'plots' && decorRT.mode !== 'event') return;
     for (const c of freeAdjacentCells()) {
       const { x, z } = hexToPos(c.q, c.r);
       const mk = new THREE.Mesh(
         new THREE.CylinderGeometry(TILE_SIZE * 0.82, TILE_SIZE * 0.82, 0.08, 6),
-        new THREE.MeshBasicMaterial({ color: 0x6ad07a, transparent: true, opacity: 0.34 })
+        new THREE.MeshBasicMaterial({
+          color: decorRT.mode === 'event' ? 0xffd479 : 0x6ad07a,
+          transparent: true,
+          opacity: decorRT.mode === 'event' ? 0.46 : 0.34,
+        })
       );
       mk.position.set(x, BASE_TOP + 0.05, z);
       mk.userData.cell = c;
@@ -412,6 +442,13 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     decorRT.cb.onPlotSelect?.(null); // тап мимо — снять выбор
   }
 
+  function handleEventPlacementClick() {
+    const mk = raycaster.intersectObjects(markersGroup.children, true)[0];
+    if (!mk) return;
+    const c = mk.object.userData.cell;
+    decorRT.cb.onEventPlace?.(c);
+  }
+
   // ---- API режимов (вызывается из React) ----
   function setDecorMode(mode, placeKey) {
     decorRT.mode = mode || null;
@@ -424,7 +461,24 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     refreshMarkers();
   }
   function setDecorCallbacks(cb) { decorRT.cb = cb || {}; }
-  function setEventCount(n) { decorRT.eventCount = n || 0; if (decorRT.mode === 'plots') refreshMarkers(); }
+  function setEventLayout(events, eventPositions) {
+    decorRT.events = events || [];
+    decorRT.eventPositions = eventPositions || {};
+    if (decorRT.mode === 'plots' || decorRT.mode === 'event') refreshMarkers();
+  }
+  function setEventPlacementMode(active) {
+    if (active) {
+      decorRT.mode = 'event';
+      decorRT.dragging = false;
+      decorRT.dragTarget = null;
+      controls.enabled = true;
+      clearGhost();
+      selectDecor(null);
+    } else if (decorRT.mode === 'event') {
+      decorRT.mode = null;
+    }
+    refreshMarkers();
+  }
   function rotateSelected() {
     const info = renderedDecor.get(decorRT.selectedId);
     if (!info) return;
@@ -442,7 +496,10 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     birds: null,
     boat: null,
     boatKey: null,
+    boatSignature: null,
     effects: new Map(),
+    effectSignatures: new Map(),
+    paletteSignature: null,
     highlight: null,
     cameraMove: null,
     tileArrivals: new Map(),
@@ -451,10 +508,18 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   const tint = new THREE.Color();
   let coupleHeart = null; // heart mesh bobbing above the couple figures
 
+  function islandLayoutSignature() {
+    return islandGroup.children
+      .filter((tile) => tile.userData.tileId)
+      .map((tile) => `${tile.userData.tileId}:${tile.userData.type || ''}:${tile.position.x.toFixed(2)},${tile.position.z.toFixed(2)}`)
+      .join('|');
+  }
+
   // Applies the full set of active upgrades. Idempotent: safe to call on every
   // change. `effects` is a Set of active additive effect keys (sea, birds,
   // atmosphere, animals — sounds are handled outside the scene).
   function applyUpgrades({ activeSky, activePalette, activeSea, effects, islandName, activeBoat }) {
+    const layoutSignature = islandLayoutSignature();
     const sky = SKY_PRESETS[activeSky] || SKY_PRESETS.sky_day;
     scene.background.setHex(sky.bg);
     scene.fog.color.setHex(sky.fog);
@@ -500,13 +565,19 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     // boat (Морской пак): an exclusive choice, not an additive effect. Rebuilt each
     // apply so it re-fits when the chosen model changes or the island grows.
     const wantBoat = activeBoat && activeBoat !== 'boat_none' ? activeBoat : null;
-    if (dynamic.boat) { scene.remove(dynamic.boat); disposeObject(dynamic.boat); dynamic.boat = null; }
-    if (wantBoat) {
+    const boatSignature = wantBoat ? `${wantBoat}|${layoutSignature}` : null;
+    if (dynamic.boat && dynamic.boatSignature !== boatSignature) {
+      scene.remove(dynamic.boat);
+      disposeObject(dynamic.boat);
+      dynamic.boat = null;
+    }
+    if (wantBoat && !dynamic.boat) {
       dynamic.boat = makeBoat(islandGroup, wantBoat);
       dynamic.boat.traverse((o) => { o.frustumCulled = false; });
       scene.add(dynamic.boat);
     }
     dynamic.boatKey = wantBoat;
+    dynamic.boatSignature = boatSignature;
 
     // generic atmosphere & animal effects, driven by the EFFECT_BUILDERS registry
     Object.keys(EFFECT_BUILDERS).forEach((key) => {
@@ -516,7 +587,11 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
       // sea effects (dolphins/waves/boats/bottle) are rebuilt so they hug and widen
       // with the island as it grows
       const seaRing = key === 'animal_dolphins' || key === 'atmo_waves' || key === 'life_bottle';
-      const rebuild = key === 'animal_ducks' || key === 'animal_swans' || key === 'life_plaque' || seaRing;
+      const layoutBound = key === 'animal_ducks' || key === 'animal_swans' || seaRing;
+      const signature = key === 'life_plaque'
+        ? `${key}|${islandName || ''}`
+        : (layoutBound ? `${key}|${layoutSignature}` : key);
+      const rebuild = has && dynamic.effectSignatures.get(key) !== signature;
       if (want && (!has || rebuild)) {
         if (has) {
           const old = dynamic.effects.get(key);
@@ -526,23 +601,29 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
         const obj = EFFECT_BUILDERS[key]({ islandGroup, islandName });
         obj.traverse((o) => { o.frustumCulled = false; }); // don't cull dynamic particles
         dynamic.effects.set(key, obj);
+        dynamic.effectSignatures.set(key, signature);
         scene.add(obj);
       } else if (!want && has) {
         const obj = dynamic.effects.get(key);
         scene.remove(obj);
         disposeObject(obj);
         dynamic.effects.delete(key);
+        dynamic.effectSignatures.delete(key);
       }
     });
 
     // land palette: re-tint every tile base from its stored original colours
-    tint.setHex(PALETTE_TINTS[activePalette] ?? 0xffffff);
-    islandGroup.traverse((o) => {
-      const orig = o.userData.tileBaseColors;
-      if (orig && Array.isArray(o.material)) {
-        o.material.forEach((m, i) => { m.color.setHex(orig[i]).multiply(tint); });
-      }
-    });
+    const paletteSignature = `${activePalette}|${layoutSignature}`;
+    if (dynamic.paletteSignature !== paletteSignature) {
+      tint.setHex(PALETTE_TINTS[activePalette] ?? 0xffffff);
+      islandGroup.traverse((o) => {
+        const orig = o.userData.tileBaseColors;
+        if (orig && Array.isArray(o.material)) {
+          o.material.forEach((m, i) => { m.color.setHex(orig[i]).multiply(tint); });
+        }
+      });
+      dynamic.paletteSignature = paletteSignature;
+    }
   }
 
   const clock = new THREE.Clock();
@@ -685,7 +766,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   sceneRef.current = {
     scene, camera, renderer, controls, islandGroup, applyUpgrades, highlightTile, playTileArrival,
     setCoupleHeart: (h) => { coupleHeart = h; },
-    syncPlots, syncDecor, setDecorMode, setDecorCallbacks, setEventCount, rotateSelected, removeSelected, setSelectedPlot,
+    syncPlots, syncDecor, setDecorMode, setDecorCallbacks, setEventLayout, setEventPlacementMode, rotateSelected, removeSelected, setSelectedPlot,
   };
 
   return () => {
@@ -707,7 +788,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   };
 }
 
-export default function IslandScene({ events, onTileClick, onBottleClick, highlightedEventId = null, activeEffects = [], activeSky = 'sky_day', activePalette = 'palette_classic', activeSea = 'sea_blue', activeIslandName = '', activeBoy = 'boy_none', activeGirl = 'girl_none', activeBoat = 'boat_none', figureColors = {}, plots = [], decor = [], decorMode = null, decorPlaceKey = null, selectedPlot = null, onPlotAdd, onPlotSelect, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect }) {
+export default function IslandScene({ events, onTileClick, onBottleClick, highlightedEventId = null, activeEffects = [], activeSky = 'sky_day', activePalette = 'palette_classic', activeSea = 'sea_blue', activeIslandName = '', activeBoy = 'boy_none', activeGirl = 'girl_none', activeBoat = 'boat_none', figureColors = {}, plots = [], decor = [], eventPositions = {}, eventPlacementMode = false, decorMode = null, decorPlaceKey = null, selectedPlot = null, onEventPlace, onPlotAdd, onPlotSelect, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect }) {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
   const coupleRef = useRef(null); // the couple figures group on the home tile
@@ -749,7 +830,11 @@ export default function IslandScene({ events, onTileClick, onBottleClick, highli
     if (!s || !ready) return;
     const islandGroup = s.islandGroup;
     const rendered = renderedTiles.current;
-    const desired = events.map((ev, i) => ({ id: ev.id, type: ev.type, index: i }));
+    const cells = computeEventCells(events, plots, eventPositions);
+    const desired = events.map((ev, i) => {
+      const cell = cells[i + 1] || SPIRAL[SPIRAL.length - 1];
+      return { id: ev.id, type: ev.type, index: i, q: cell.q, r: cell.r };
+    });
     const desiredById = new Map(desired.map((d) => [d.id, d]));
 
     // if any already-rendered tile no longer matches (type or position changed, or
@@ -758,33 +843,23 @@ export default function IslandScene({ events, onTileClick, onBottleClick, highli
     let needsRebuild = false;
     for (const [id, info] of rendered) {
       const d = desiredById.get(id);
-      if (!d || d.type !== info.type || d.index !== info.index) { needsRebuild = true; break; }
+      if (!d || d.type !== info.type || d.index !== info.index || d.q !== info.q || d.r !== info.r) { needsRebuild = true; break; }
     }
     if (needsRebuild) {
       for (const [, info] of rendered) islandGroup.remove(info.group);
       rendered.clear();
     }
 
-    // клетки под события с ОБХОДОМ площадок, чтобы новый остров не «съедал» площадку
-    const plotSet = new Set((plots || []).map((p) => plotKey(p.q, p.r)));
-    const eventCells = [];
-    for (let i = 1; i < SPIRAL.length && eventCells.length < events.length; i++) {
-      const c = SPIRAL[i];
-      if (plotSet.has(plotKey(c.q, c.r))) continue;
-      eventCells.push(c);
-    }
-
     const shouldAnimateNewTiles = hasSyncedEvents.current && !needsRebuild;
     desired.forEach((d) => {
       if (rendered.has(d.id)) return;
-      const pos = eventCells[d.index] || SPIRAL[SPIRAL.length - 1];
-      const tile = buildTile(d.id, d.type, pos.q, pos.r);
+      const tile = buildTile(d.id, d.type, d.q, d.r);
       islandGroup.add(tile);
-      rendered.set(d.id, { group: tile, type: d.type, index: d.index });
+      rendered.set(d.id, { group: tile, type: d.type, index: d.index, q: d.q, r: d.r });
       if (shouldAnimateNewTiles) s.playTileArrival(tile);
     });
     hasSyncedEvents.current = true;
-  }, [events, ready, plots]);
+  }, [events, ready, plots, eventPositions]);
 
   useEffect(() => {
     const s = sceneRef.current;
@@ -856,14 +931,14 @@ export default function IslandScene({ events, onTileClick, onBottleClick, highli
   useEffect(() => {
     const s = sceneRef.current;
     if (!s || !ready) return;
-    s.setDecorCallbacks({ onPlotAdd, onPlotSelect, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect });
-  }, [ready, onPlotAdd, onPlotSelect, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect]);
+    s.setDecorCallbacks({ onEventPlace, onPlotAdd, onPlotSelect, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect });
+  }, [ready, onEventPlace, onPlotAdd, onPlotSelect, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect]);
 
   useEffect(() => {
     const s = sceneRef.current;
     if (!s || !ready) return;
-    s.setEventCount(events.length);
-  }, [ready, events]);
+    s.setEventLayout(events, eventPositions);
+  }, [ready, events, eventPositions]);
 
   useEffect(() => {
     const s = sceneRef.current;
@@ -882,6 +957,12 @@ export default function IslandScene({ events, onTileClick, onBottleClick, highli
     if (!s || !ready) return;
     s.setDecorMode(decorMode, decorPlaceKey);
   }, [ready, decorMode, decorPlaceKey]);
+
+  useEffect(() => {
+    const s = sceneRef.current;
+    if (!s || !ready) return;
+    s.setEventPlacementMode(eventPlacementMode);
+  }, [ready, eventPlacementMode]);
 
   useEffect(() => {
     const s = sceneRef.current;

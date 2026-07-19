@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TYPES, TYPE_CATEGORIES } from '../scene/tileBuilders';
 import { tr } from '../i18n';
 import { useSwipeDownClose } from '../lib/gestures';
@@ -56,10 +56,15 @@ async function cropImageFile(file, crop) {
 }
 
 // Used both to add a new event and to edit an existing one (pass `event`).
-export default function AddEventModal({ onClose, onSave, event }) {
+export default function AddEventModal({ onClose, onSave, event, draft = null }) {
   const editing = !!event;
+  const initial = event || draft || {};
+  const initialPhotoFile = !editing && draft?.photoFile ? draft.photoFile : null;
+  const initialPhotoPreview = useMemo(() => (
+    event ? event.photo : (initialPhotoFile ? URL.createObjectURL(initialPhotoFile) : null)
+  ), [event, initialPhotoFile]);
   const noteRef = useRef(null);
-  const [type, setType] = useState(event ? event.type : null);
+  const [type, setType] = useState(initial.type || null);
   // сворачиваемые разделы: по умолчанию открыты все
   const [openCats, setOpenCats] = useState(() => new Set(TYPE_CATEGORIES.map((c) => c.id)));
   const toggleCat = (id) => setOpenCats((prev) => {
@@ -67,11 +72,11 @@ export default function AddEventModal({ onClose, onSave, event }) {
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
-  const [note, setNote] = useState(event ? event.note || '' : '');
-  const [date, setDate] = useState(toDateInput(event ? event.dateISO : null));
-  const [photoFile, setPhotoFile] = useState(null);
+  const [note, setNote] = useState(initial.note || '');
+  const [date, setDate] = useState(toDateInput(editing ? event.dateISO : initial.date));
+  const [photoFile, setPhotoFile] = useState(initialPhotoFile);
   const [cropSourceFile, setCropSourceFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(event ? event.photo : null);
+  const [photoPreview, setPhotoPreview] = useState(initialPhotoPreview);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [crop, setCrop] = useState({ x: 50, y: 50, zoom: 1 });
   const dragRef = useRef(null);
@@ -79,6 +84,10 @@ export default function AddEventModal({ onClose, onSave, event }) {
   const [error, setError] = useState(null);
   const scrollRef = useRef(null);
   const { elRef, swipeHandlers } = useSwipeDownClose(() => { if (!saving) onClose(); }, scrollRef);
+
+  useEffect(() => () => {
+    try { if (initialPhotoPreview && initialPhotoPreview.startsWith('blob:')) URL.revokeObjectURL(initialPhotoPreview); } catch { /* ignore */ }
+  }, [initialPhotoPreview]);
 
   async function handlePhotoChange(e) {
     const file = e.target.files[0];

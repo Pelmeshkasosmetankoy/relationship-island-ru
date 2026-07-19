@@ -176,6 +176,7 @@ export const DEFAULT_SETTINGS = {
   jar_notes_b: '',          // reasons about partner B: B pulls from here, A writes here
   name_a: '',               // partner A's name (shared, so both see it)
   name_b: '',               // partner B's name
+  event_positions: '',      // JSON map: { event_id: { q, r } } for manually placed memory tiles
   plots: '',                // JSON-массив травяных площадок [{q,r}] под декор
   decor_layout: '',         // JSON-массив расставленного декора [{id,key,x,z,rot}]
   decor_inventory: '',      // JSON-склад: {item_key: count} купленных, но не поставленных
@@ -211,6 +212,27 @@ export function parseJarNotes(str) {
 }
 export function stringifyJarNotes(arr) {
   return JSON.stringify(arr);
+}
+
+export function parseEventPositions(str) {
+  try {
+    const raw = JSON.parse(str || '{}');
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out = {};
+    Object.entries(raw).forEach(([id, pos]) => {
+      if (!pos) return;
+      const q = Number(pos.q);
+      const r = Number(pos.r);
+      if (Number.isFinite(q) && Number.isFinite(r)) out[id] = { q, r };
+    });
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function stringifyEventPositions(obj) {
+  return JSON.stringify(obj || {});
 }
 
 // Owned additive effect is active unless it's in the "off" set. Returns the list

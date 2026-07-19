@@ -26,11 +26,11 @@ import {
   fetchSettings, setSetting, subscribeToSettings,
   fetchWishes, addWish, updateWish, deleteWish, subscribeToWishes,
 } from './lib/worldStore';
-import { getSession, onAuthChange, signOut, deleteMyAccount } from './lib/auth';
+import { getSession, onAuthChange, signOut, deleteMyAccount, getSavedLogin, loginFromEmail } from './lib/auth';
 import {
   computeBalance, isOwned, itemPrice, EXCLUSIVE_CATEGORIES, settingKeyForCategory, DEFAULT_SETTINGS,
   computeActiveEffects, parseKeySet, stringifyKeySet, packForItem, isPackOwned, FIGURE_CHOICES, PACKS,
-  parseJarNotes, stringifyJarNotes,
+  parseJarNotes, stringifyJarNotes, parseEventPositions, stringifyEventPositions,
 } from './lib/economy';
 import { DECOR_ITEMS, parsePlots, stringifyPlots, parseDecor, stringifyDecor, genDecorId, parseInventory, stringifyInventory } from './lib/decor';
 import { hexToPos, TILE_SIZE } from './scene/hexMath';
@@ -117,6 +117,9 @@ export default function App() {
   const [purchases, setPurchases] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [showAdd, setShowAdd] = useState(false);
+  const [choosingEventCell, setChoosingEventCell] = useState(false);
+  const [pendingEventCell, setPendingEventCell] = useState(null);
+  const [pendingEventDraft, setPendingEventDraft] = useState(null);
   const [showShop, setShowShop] = useState(false);
   const [showWishes, setShowWishes] = useState(false);
   const [showFigures, setShowFigures] = useState(false);
@@ -315,14 +318,63 @@ export default function App() {
   // create/replace this island's recovery code; returns it to show once
   const handleCreateRecovery = useCallback(() => setRecoveryCode(code), [code]);
 
-  const handleCreateEvent = useCallback(async ({ type, note, photoFile, date }) => {
-    const newEvent = await insertEvent(code, { type, note, photoFile, date });
-    successFeedback(); // a little buzz to celebrate a new memory
-    setSalute((n) => n + 1); // …and a little confetti burst
-    // realtime will also deliver this insert; the dedupe check prevents a double-add
-    setEvents((prev) => (prev.some((e) => e.id === newEvent.id) ? prev : [...prev, newEvent]));
+  const eventPositions = useMemo(() => parseEventPositions(settings.event_positions), [settings.event_positions]);
+
+  const handleStartAddEvent = useCallback(() => {
+    setPendingEventCell(null);
+    setPendingEventDraft(null);
+    setShowAdd(true);
+  }, []);
+
+  const handleEventPlace = useCallback(async (cell) => {
+    if (!cell || !pendingEventDraft) return;
+    const placedCell = { q: cell.q, r: cell.r };
+    setPendingEventCell(placedCell);
+    setChoosingEventCell(false);
+    try {
+      const newEvent = await insertEvent(code, pendingEventDraft);
+      const nextPositions = {
+        ...eventPositions,
+        [newEvent.id]: placedCell,
+      };
+      const value = stringifyEventPositions(nextPositions);
+      setSettings((prev) => {
+        const next = { ...prev, event_positions: value };
+        saveLocalSettings(code, next);
+        return next;
+      });
+      setSetting(code, 'event_positions', value).catch((e) => console.warn('Позиция события не синхронизирована:', e));
+      successFeedback(); // a little buzz to celebrate a new memory
+      setSalute((n) => n + 1); // …and a little confetti burst
+      // realtime will also deliver this insert; the dedupe check prevents a double-add
+      setEvents((prev) => (prev.some((e) => e.id === newEvent.id) ? prev : [...prev, newEvent]));
+      setPendingEventDraft(null);
+      setPendingEventCell(null);
+    } catch (e) {
+      console.error('Не удалось сохранить событие:', e);
+      window.alert(tr('ev_err_save'));
+      setPendingEventCell(null);
+      setShowAdd(true);
+    }
+  }, [code, eventPositions, pendingEventDraft]);
+
+  const handleCancelAddEvent = useCallback(() => {
     setShowAdd(false);
-  }, [code]);
+    setPendingEventCell(null);
+    setPendingEventDraft(null);
+  }, []);
+
+  const handleCreateEvent = useCallback(async ({ type, note, photoFile, date }) => {
+    setPendingEventDraft({ type, note, photoFile, date });
+    setShowAdd(false);
+    setPendingEventCell(null);
+    setChoosingEventCell(true);
+  }, []);
+  const handleCancelEventPlacement = useCallback(() => {
+    setChoosingEventCell(false);
+    setPendingEventCell(null);
+    if (pendingEventDraft) setShowAdd(true);
+  }, [pendingEventDraft]);
 
   const handleUpdateEvent = useCallback(async ({ type, note, photoFile, date }) => {
     const updated = await updateEvent(code, editingEvent.id, { type, note, photoFile, date });
@@ -339,8 +391,19 @@ export default function App() {
       return;
     }
     setEvents((prev) => prev.filter((e) => e.id !== event.id));
+    if (eventPositions[event.id]) {
+      const nextPositions = { ...eventPositions };
+      delete nextPositions[event.id];
+      const value = stringifyEventPositions(nextPositions);
+      setSettings((prev) => {
+        const next = { ...prev, event_positions: value };
+        saveLocalSettings(code, next);
+        return next;
+      });
+      setSetting(code, 'event_positions', value).catch((e) => console.warn('Позиция события не синхронизирована:', e));
+    }
     setSelectedEvent(null);
-  }, []);
+  }, [code, eventPositions]);
 
   // ---- wish list "Хотим вместе" ----
   const handleAddWish = useCallback(async (text) => {
@@ -808,6 +871,9 @@ export default function App() {
     setSelectedEvent(null);
     setEditingEvent(null);
     setShowAdd(false);
+    setChoosingEventCell(false);
+    setPendingEventCell(null);
+    setPendingEventDraft(null);
     setShowShop(false);
     setShowWishes(false);
     setShowFigures(false);
@@ -830,12 +896,13 @@ export default function App() {
   // The ref is refreshed every render so the listener always sees current state.
   const closeTopRef = useRef(() => false);
   closeTopRef.current = () => {
+    if (choosingEventCell) { handleCancelEventPlacement(); return true; }
     if (showPremiumPreview) { setShowPremiumPreview(false); return true; }
     if (showPremium) { setShowPremium(false); return true; }
     if (showBottle) { setShowBottle(false); return true; }
     if (showJar) { setShowJar(false); return true; }
     if (editingEvent) { setEditingEvent(null); return true; }
-    if (showAdd) { setShowAdd(false); return true; }
+    if (showAdd) { handleCancelAddEvent(); return true; }
     if (selectedEvent) { setSelectedEvent(null); return true; }
     if (showHub) { setShowHub(false); return true; }
     if (showDecor) { closeDecor(); return true; }
@@ -890,6 +957,7 @@ export default function App() {
   const hasLake = events.some((e) => e.type === 'lake');
   const visibleActiveBoy = normalizeFigureChoice('boy', settings.active_boy);
   const visibleActiveGirl = normalizeFigureChoice('girl', settings.active_girl);
+  const accountLogin = loginFromEmail(session?.user?.email) || getSavedLogin();
 
   return (
     <>
@@ -909,9 +977,12 @@ export default function App() {
         figureColors={figureColors}
         plots={plots}
         decor={decor}
+        eventPositions={eventPositions}
+        eventPlacementMode={choosingEventCell}
         decorMode={decorMode}
         decorPlaceKey={decorPlaceKey}
         selectedPlot={selectedPlot}
+        onEventPlace={handleEventPlace}
         onPlotAdd={handlePlotAdd}
         onPlotSelect={(q, r) => setSelectedPlot(q == null ? null : { q, r })}
         onDecorPlace={handleDecorPlace}
@@ -924,14 +995,25 @@ export default function App() {
         <>
           <div className="topbar">
             <div className="topbar-right">
-              <button className="coin-btn mono" onClick={() => setShowHub(true)} title="Магазин и обустройство">
-                🪙 {balance}
-              </button>
+              <div className="coin-stack">
+                <div className="coin-btn mono" aria-label="Баланс монет">
+                  🪙 {balance}
+                </div>
+                <button className="shop-fab" onClick={() => setShowHub(true)} aria-label="Магазин и обустройство" title="Магазин и обустройство">
+                  <img src="/shop_without_fon.png" alt="" />
+                </button>
+              </div>
             </div>
           </div>
           <button className="menu-btn" onClick={() => setShowMenu(true)} aria-label="Меню">☰</button>
-          <button className="fab-add" onClick={() => setShowAdd(true)}>{tr('add_event')}</button>
+          <button className="fab-add" onClick={handleStartAddEvent}>{tr('add_event')}</button>
           <div className="rotate-hint">{tr('rotate_hint')}</div>
+          {choosingEventCell && (
+            <div className="placement-banner">
+              <span>{tr('event_place_hint')}</span>
+              <button type="button" onClick={handleCancelEventPlacement}>{tr('cancel')}</button>
+            </div>
+          )}
         </>
       )}
 
@@ -977,17 +1059,17 @@ export default function App() {
             <p className="sub mono">🪙 {balance} монет</p>
             <div className="hub-options">
               <button className="hub-opt" onClick={() => { setShowHub(false); setSelectedPlot(null); setSelectedDecorId(null); setDecorPlaceKey(null); setDecorTab('plots'); setShowDecor(true); }}>
-                <span className="hub-emoji">🟩</span>
+                <span className="hub-emoji"><img src="/another/ploshadka_without_fon.png" alt="" /></span>
                 <span className="hub-text"><b>Площадки</b><small>Добавить и покрасить шестиугольники</small></span>
                 <span className="hub-arrow">›</span>
               </button>
               <button className="hub-opt" onClick={() => { setShowHub(false); setSelectedPlot(null); setSelectedDecorId(null); setDecorPlaceKey(null); setDecorTab('items'); setShowDecor(true); }}>
-                <span className="hub-emoji">🪑</span>
+                <span className="hub-emoji"><img src="/another/things.svg" alt="" /></span>
                 <span className="hub-text"><b>Предметы</b><small>Купить и расставить декор</small></span>
                 <span className="hub-arrow">›</span>
               </button>
               <button className="hub-opt" onClick={() => { setShowHub(false); setShowShop(true); }}>
-                <span className="hub-emoji">✨</span>
+                <span className="hub-emoji"><img src="/another/uluchshenia.svg" alt="" /></span>
                 <span className="hub-text"><b>Улучшения</b><small>Небо, палитра, эффекты, звуки, море</small></span>
                 <span className="hub-arrow">›</span>
               </button>
@@ -1007,7 +1089,7 @@ export default function App() {
       )}
 
       {showAdd && (
-        <AddEventModal onClose={() => setShowAdd(false)} onSave={handleCreateEvent} />
+        <AddEventModal onClose={handleCancelAddEvent} onSave={handleCreateEvent} draft={pendingEventDraft} />
       )}
 
       {editingEvent && (
@@ -1108,6 +1190,7 @@ export default function App() {
           events={events}
           code={code}
           islandName={settings.island_name}
+          accountLogin={accountLogin}
           onSetIslandName={handleSetIslandName}
           onCreateRecovery={handleCreateRecovery}
           onDeleteAccount={handleDeleteAccount}
