@@ -710,6 +710,11 @@ export default function App() {
     if (d) handleDecorUpdate({ id: d.id, x: d.x, z: d.z, rot: (d.rot || 0) + Math.PI / 6 });
   }, [selectedDecorId, settings.decor_layout, handleDecorUpdate]);
 
+  const handleSetPlotColor = useCallback((hex) => {
+    setSettings((prev) => ({ ...prev, plot_color: hex }));
+    setSetting(code, 'plot_color', hex).catch((e) => console.warn('Цвет площадок не синхронизирован:', e));
+  }, [code]);
+
   const closeDecor = useCallback(() => { setShowDecor(false); setDecorPlaceKey(null); setSelectedDecorId(null); setPendingPlotRemove(null); }, []);
 
   // open an isolated preview: the real island, purchases and settings are untouched
@@ -897,6 +902,7 @@ export default function App() {
         decor={decor}
         decorMode={decorMode}
         decorPlaceKey={decorPlaceKey}
+        plotColor={settings.plot_color}
         onPlotAdd={handlePlotAdd}
         onPlotRemove={handlePlotRemove}
         onDecorPlace={handleDecorPlace}
@@ -925,6 +931,8 @@ export default function App() {
         <DecorPanel
           items={DECOR_ITEMS}
           inventory={inventory}
+          plotColor={settings.plot_color}
+          onPickColor={handleSetPlotColor}
           tab={decorTab}
           onTab={(t) => { setDecorTab(t); setDecorPlaceKey(null); setSelectedDecorId(null); }}
           placeKey={decorPlaceKey}

@@ -123,7 +123,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   const gp = new THREE.Vector3();
   const decorRT = {
     mode: null, placeKey: null, selectedId: null, eventCount: 0, plots: [],
-    cb: {}, dragging: false, lastValid: false, dragTarget: null,
+    cb: {}, dragging: false, lastValid: false, dragTarget: null, plotColor: '',
   };
   let ghost = null;
   const selectionRing = new THREE.Mesh(
@@ -182,6 +182,24 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     }
   }
 
+  // перекрасить верх/бока травяной площадки в выбранный цвет
+  const _pc = new THREE.Color();
+  function colorPlot(g, hex) {
+    const base = g.children.find((c) => Array.isArray(c.material));
+    if (!base) return;
+    _pc.set(hex);
+    const side = _pc.clone().multiplyScalar(0.5);
+    base.material[1].color.copy(_pc);
+    base.material[0].color.copy(side);
+    base.material[2].color.copy(side);
+    base.userData.tileBaseColors = [side.getHex(), _pc.getHex(), side.getHex()];
+  }
+  function setPlotColor(hex) {
+    decorRT.plotColor = hex || '';
+    if (hex) renderedPlots.forEach((g) => colorPlot(g, hex));
+    renderer.shadowMap.needsUpdate = true;
+  }
+
   function syncPlots(plots) {
     decorRT.plots = plots || [];
     const want = new Map((plots || []).map((p) => [plotKey(p.q, p.r), p]));
@@ -191,6 +209,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     for (const [k, p] of want) {
       if (!renderedPlots.has(k)) {
         const t = buildTile('plot:' + k, 'grass', p.q, p.r);
+        if (decorRT.plotColor) colorPlot(t, decorRT.plotColor);
         plotsGroup.add(t);
         renderedPlots.set(k, t);
       }
@@ -654,7 +673,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   sceneRef.current = {
     scene, camera, renderer, controls, islandGroup, applyUpgrades, highlightTile, playTileArrival,
     setCoupleHeart: (h) => { coupleHeart = h; },
-    syncPlots, syncDecor, setDecorMode, setDecorCallbacks, setEventCount, rotateSelected, removeSelected,
+    syncPlots, syncDecor, setDecorMode, setDecorCallbacks, setEventCount, rotateSelected, removeSelected, setPlotColor,
   };
 
   return () => {
@@ -676,7 +695,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   };
 }
 
-export default function IslandScene({ events, onTileClick, onBottleClick, highlightedEventId = null, activeEffects = [], activeSky = 'sky_day', activePalette = 'palette_classic', activeSea = 'sea_blue', activeIslandName = '', activeBoy = 'boy_none', activeGirl = 'girl_none', activeBoat = 'boat_none', figureColors = {}, plots = [], decor = [], decorMode = null, decorPlaceKey = null, onPlotAdd, onPlotRemove, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect }) {
+export default function IslandScene({ events, onTileClick, onBottleClick, highlightedEventId = null, activeEffects = [], activeSky = 'sky_day', activePalette = 'palette_classic', activeSea = 'sea_blue', activeIslandName = '', activeBoy = 'boy_none', activeGirl = 'girl_none', activeBoat = 'boat_none', figureColors = {}, plots = [], decor = [], decorMode = null, decorPlaceKey = null, plotColor = '', onPlotAdd, onPlotRemove, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect }) {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
   const coupleRef = useRef(null); // the couple figures group on the home tile
@@ -851,6 +870,12 @@ export default function IslandScene({ events, onTileClick, onBottleClick, highli
     if (!s || !ready) return;
     s.setDecorMode(decorMode, decorPlaceKey);
   }, [ready, decorMode, decorPlaceKey]);
+
+  useEffect(() => {
+    const s = sceneRef.current;
+    if (!s || !ready) return;
+    s.setPlotColor(plotColor);
+  }, [ready, plotColor, plots]);
 
   if (sceneError) {
     return (

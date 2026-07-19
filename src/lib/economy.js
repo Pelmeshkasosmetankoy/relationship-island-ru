@@ -179,6 +179,7 @@ export const DEFAULT_SETTINGS = {
   plots: '',                // JSON-массив травяных площадок [{q,r}] под декор
   decor_layout: '',         // JSON-массив расставленного декора [{id,key,x,z,rot}]
   decor_inventory: '',      // JSON-склад: {item_key: count} купленных, но не поставленных
+  plot_color: '',           // цвет травяных площадок (hex); пусто = зелёный по умолчанию
 };
 
 export function settingKeyForCategory(category) {

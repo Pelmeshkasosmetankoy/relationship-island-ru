@@ -2,10 +2,13 @@ import { DECOR_BY_KEY } from '../lib/decor';
 
 // Нижняя панель обустройства острова: вкладки «Площадки» и «Предметы».
 // Остров над панелью остаётся видимым и кликабельным (расстановка идёт по нему).
+const PLOT_COLORS = ['#74b85a', '#8fd6c0', '#7bb6d8', '#b894d8', '#f2b0cf', '#e8d79a', '#d0a878', '#c0c8d2', '#e0b060'];
+
 export default function DecorPanel({
-  items, inventory = {}, tab, onTab, placeKey, onBuy, onPickItem, onStopPlacing,
+  items, inventory = {}, plotColor = '', onPickColor, tab, onTab, placeKey, onBuy, onPickItem, onStopPlacing,
   selectedId, onRotate, onDelete, onClose,
 }) {
+  const activeColor = plotColor || PLOT_COLORS[0];
   const placing = !!placeKey;
   return (
     <div className="decor-panel">
@@ -20,10 +23,26 @@ export default function DecorPanel({
       </div>
 
       {tab === 'plots' && (
-        <p className="decor-hint">
-          Нажмите на подсвеченную зелёную клетку рядом с островом, чтобы <b>добавить</b> площадку.
-          Нажмите на площадку — чтобы <b>убрать</b> её.
-        </p>
+        <>
+          <p className="decor-hint">
+            Нажмите на подсвеченную зелёную клетку рядом с островом, чтобы <b>добавить</b> площадку.
+            Нажмите на площадку — чтобы <b>убрать</b> её.
+          </p>
+          <div className="decor-colors">
+            <span className="decor-colors-label">Цвет площадок:</span>
+            <div className="decor-swatches">
+              {PLOT_COLORS.map((c) => (
+                <button
+                  key={c}
+                  className={`decor-swatch ${activeColor.toLowerCase() === c.toLowerCase() ? 'active' : ''}`}
+                  style={{ background: c }}
+                  onClick={() => onPickColor(c)}
+                  aria-label={`Цвет ${c}`}
+                />
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {tab === 'items' && (
