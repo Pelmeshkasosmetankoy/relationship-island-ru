@@ -182,22 +182,36 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
     }
   }
 
-  // перекрасить верх/бока травяной площадки в выбранный цвет
+  // перекрасить верх/бока конкретной травяной площадки
   const _pc = new THREE.Color();
+  const DEFAULT_PLOT_COLOR = '#74b85a';
   function colorPlot(g, hex) {
     const base = g.children.find((c) => Array.isArray(c.material));
     if (!base) return;
-    _pc.set(hex);
+    _pc.set(hex || DEFAULT_PLOT_COLOR);
     const side = _pc.clone().multiplyScalar(0.5);
     base.material[1].color.copy(_pc);
     base.material[0].color.copy(side);
     base.material[2].color.copy(side);
     base.userData.tileBaseColors = [side.getHex(), _pc.getHex(), side.getHex()];
   }
-  function setPlotColor(hex) {
-    decorRT.plotColor = hex || '';
-    if (hex) renderedPlots.forEach((g) => colorPlot(g, hex));
-    renderer.shadowMap.needsUpdate = true;
+  // кольцо-подсветка выбранной площадки
+  const plotSelRing = new THREE.Mesh(
+    new THREE.TorusGeometry(TILE_SIZE * 0.92, 0.09, 8, 6),
+    new THREE.MeshBasicMaterial({ color: 0xffd479 })
+  );
+  plotSelRing.rotation.x = Math.PI / 2;
+  plotSelRing.rotation.z = Math.PI / 6;
+  plotSelRing.visible = false;
+  scene.add(plotSelRing);
+  function setSelectedPlot(cell) {
+    if (cell && Number.isFinite(cell.q)) {
+      const { x, z } = hexToPos(cell.q, cell.r);
+      plotSelRing.position.set(x, BASE_TOP + 0.07, z);
+      plotSelRing.visible = true;
+    } else {
+      plotSelRing.visible = false;
+    }
   }
 
   function syncPlots(plots) {
@@ -207,12 +221,9 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
       if (!want.has(k)) { plotsGroup.remove(mesh); disposeObject(mesh); renderedPlots.delete(k); }
     }
     for (const [k, p] of want) {
-      if (!renderedPlots.has(k)) {
-        const t = buildTile('plot:' + k, 'grass', p.q, p.r);
-        if (decorRT.plotColor) colorPlot(t, decorRT.plotColor);
-        plotsGroup.add(t);
-        renderedPlots.set(k, t);
-      }
+      let t = renderedPlots.get(k);
+      if (!t) { t = buildTile('plot:' + k, 'grass', p.q, p.r); plotsGroup.add(t); renderedPlots.set(k, t); }
+      colorPlot(t, p.color); // цвет у каждой площадки свой
     }
     renderer.shadowMap.needsUpdate = true;
     refreshMarkers();
@@ -388,16 +399,17 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
 
   // ---- клик в режиме площадок: добавить/убрать ----
   function handlePlotsClick() {
-    // маркер свободной клетки -> добавить
+    // маркер свободной клетки -> добавить площадку
     const mk = raycaster.intersectObjects(markersGroup.children, true)[0];
     if (mk) { const c = mk.object.userData.cell; decorRT.cb.onPlotAdd?.(c.q, c.r); return; }
-    // существующая площадка -> убрать
+    // существующая площадка -> ВЫБРАТЬ (покрасить/убрать через панель)
     const ph = raycaster.intersectObjects(plotsGroup.children, true)[0];
     if (ph) {
       let obj = ph.object;
       while (obj && obj.userData.q == null) obj = obj.parent;
-      if (obj && obj.userData.q != null) decorRT.cb.onPlotRemove?.(obj.userData.q, obj.userData.r);
+      if (obj && obj.userData.q != null) { decorRT.cb.onPlotSelect?.(obj.userData.q, obj.userData.r); return; }
     }
+    decorRT.cb.onPlotSelect?.(null); // тап мимо — снять выбор
   }
 
   // ---- API режимов (вызывается из React) ----
@@ -673,7 +685,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   sceneRef.current = {
     scene, camera, renderer, controls, islandGroup, applyUpgrades, highlightTile, playTileArrival,
     setCoupleHeart: (h) => { coupleHeart = h; },
-    syncPlots, syncDecor, setDecorMode, setDecorCallbacks, setEventCount, rotateSelected, removeSelected, setPlotColor,
+    syncPlots, syncDecor, setDecorMode, setDecorCallbacks, setEventCount, rotateSelected, removeSelected, setSelectedPlot,
   };
 
   return () => {
@@ -695,7 +707,7 @@ function createScene(container, onTileClick, onBottleClick, sceneRef) {
   };
 }
 
-export default function IslandScene({ events, onTileClick, onBottleClick, highlightedEventId = null, activeEffects = [], activeSky = 'sky_day', activePalette = 'palette_classic', activeSea = 'sea_blue', activeIslandName = '', activeBoy = 'boy_none', activeGirl = 'girl_none', activeBoat = 'boat_none', figureColors = {}, plots = [], decor = [], decorMode = null, decorPlaceKey = null, plotColor = '', onPlotAdd, onPlotRemove, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect }) {
+export default function IslandScene({ events, onTileClick, onBottleClick, highlightedEventId = null, activeEffects = [], activeSky = 'sky_day', activePalette = 'palette_classic', activeSea = 'sea_blue', activeIslandName = '', activeBoy = 'boy_none', activeGirl = 'girl_none', activeBoat = 'boat_none', figureColors = {}, plots = [], decor = [], decorMode = null, decorPlaceKey = null, selectedPlot = null, onPlotAdd, onPlotSelect, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect }) {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
   const coupleRef = useRef(null); // the couple figures group on the home tile
@@ -844,8 +856,8 @@ export default function IslandScene({ events, onTileClick, onBottleClick, highli
   useEffect(() => {
     const s = sceneRef.current;
     if (!s || !ready) return;
-    s.setDecorCallbacks({ onPlotAdd, onPlotRemove, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect });
-  }, [ready, onPlotAdd, onPlotRemove, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect]);
+    s.setDecorCallbacks({ onPlotAdd, onPlotSelect, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect });
+  }, [ready, onPlotAdd, onPlotSelect, onDecorPlace, onDecorUpdate, onDecorRemove, onDecorSelect]);
 
   useEffect(() => {
     const s = sceneRef.current;
@@ -874,8 +886,8 @@ export default function IslandScene({ events, onTileClick, onBottleClick, highli
   useEffect(() => {
     const s = sceneRef.current;
     if (!s || !ready) return;
-    s.setPlotColor(plotColor);
-  }, [ready, plotColor, plots]);
+    s.setSelectedPlot(selectedPlot);
+  }, [ready, selectedPlot]);
 
   if (sceneError) {
     return (

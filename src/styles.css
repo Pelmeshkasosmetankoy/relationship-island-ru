@@ -103,6 +103,19 @@ input[type=text].auth-input,input[type=password].auth-input{ text-transform:none
 .decor-swatch{ width:28px; height:28px; border-radius:50%; border:2px solid rgba(255,255,255,0.25); cursor:pointer; padding:0; transition:transform 0.12s var(--ease); }
 .decor-swatch:active{ transform:scale(0.9); }
 .decor-swatch.active{ border-color:var(--gold); box-shadow:0 0 0 2px var(--gold); }
+
+/* Хаб «Обустроить остров» */
+.hub{ position:relative; max-width:380px; }
+.hub-x{ position:absolute; top:8px; right:12px; background:none; border:none; color:var(--parchment-dim); font-size:18px; cursor:pointer; padding:4px 6px; }
+.hub-options{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+.hub-opt{ display:flex; align-items:center; gap:14px; padding:13px; border-radius:12px; border:1px solid rgba(212,175,106,0.22); background:rgba(255,255,255,0.02); color:var(--parchment); cursor:pointer; text-align:left; transition:border-color 0.16s var(--ease), transform 0.1s var(--ease); }
+.hub-opt:hover{ border-color:var(--gold); }
+.hub-opt:active{ transform:scale(0.98); }
+.hub-emoji{ font-size:26px; line-height:1; flex:none; width:46px; height:46px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:rgba(212,175,106,0.1); }
+.hub-text{ display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+.hub-text b{ font-size:15px; }
+.hub-text small{ font-size:11.5px; color:var(--parchment-dim); }
+.hub-arrow{ flex:none; color:var(--parchment-dim); font-size:22px; }
 .decor-placing{ display:flex; flex-direction:column; gap:10px; }
 .decor-edit{ margin-bottom:10px; }
 .decor-edit-btns{ display:flex; gap:8px; }

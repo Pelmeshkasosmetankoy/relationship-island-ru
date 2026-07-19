@@ -19,14 +19,16 @@ export function parsePlots(str) {
   try {
     const arr = JSON.parse(str || '[]');
     return Array.isArray(arr)
-      ? arr.filter((p) => p && Number.isFinite(p.q) && Number.isFinite(p.r))
+      ? arr
+          .filter((p) => p && Number.isFinite(p.q) && Number.isFinite(p.r))
+          .map((p) => ({ q: p.q, r: p.r, color: typeof p.color === 'string' ? p.color : '' }))
       : [];
   } catch {
     return [];
   }
 }
 export function stringifyPlots(arr) {
-  return JSON.stringify(arr.map((p) => ({ q: p.q, r: p.r })));
+  return JSON.stringify(arr.map((p) => (p.color ? { q: p.q, r: p.r, color: p.color } : { q: p.q, r: p.r })));
 }
 export const plotKey = (q, r) => `${q},${r}`;
 

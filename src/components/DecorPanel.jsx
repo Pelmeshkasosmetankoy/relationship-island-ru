@@ -5,10 +5,11 @@ import { DECOR_BY_KEY } from '../lib/decor';
 const PLOT_COLORS = ['#74b85a', '#8fd6c0', '#7bb6d8', '#b894d8', '#f2b0cf', '#e8d79a', '#d0a878', '#c0c8d2', '#e0b060'];
 
 export default function DecorPanel({
-  items, inventory = {}, plotColor = '', onPickColor, tab, onTab, placeKey, onBuy, onPickItem, onStopPlacing,
+  items, inventory = {}, selectedPlot, selectedPlotColor = '', onPlotColor, onRemovePlot,
+  tab, onTab, placeKey, onBuy, onPickItem, onStopPlacing,
   selectedId, onRotate, onDelete, onClose,
 }) {
-  const activeColor = plotColor || PLOT_COLORS[0];
+  const activeColor = selectedPlotColor || PLOT_COLORS[0];
   const placing = !!placeKey;
   return (
     <div className="decor-panel">
@@ -26,22 +27,29 @@ export default function DecorPanel({
         <>
           <p className="decor-hint">
             Нажмите на подсвеченную зелёную клетку рядом с островом, чтобы <b>добавить</b> площадку.
-            Нажмите на площадку — чтобы <b>убрать</b> её.
+            Нажмите на существующую площадку, чтобы <b>покрасить</b> или <b>убрать</b> её.
           </p>
-          <div className="decor-colors">
-            <span className="decor-colors-label">Цвет площадок:</span>
-            <div className="decor-swatches">
-              {PLOT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  className={`decor-swatch ${activeColor.toLowerCase() === c.toLowerCase() ? 'active' : ''}`}
-                  style={{ background: c }}
-                  onClick={() => onPickColor(c)}
-                  aria-label={`Цвет ${c}`}
-                />
-              ))}
-            </div>
-          </div>
+          {selectedPlot ? (
+            <>
+              <div className="decor-colors">
+                <span className="decor-colors-label">Цвет площадки:</span>
+                <div className="decor-swatches">
+                  {PLOT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      className={`decor-swatch ${activeColor.toLowerCase() === c.toLowerCase() ? 'active' : ''}`}
+                      style={{ background: c }}
+                      onClick={() => onPlotColor(c)}
+                      aria-label={`Цвет ${c}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <button className="btn btn-danger" style={{ marginTop: 4 }} onClick={onRemovePlot}>🗑 Убрать эту площадку</button>
+            </>
+          ) : (
+            <p className="decor-hint" style={{ opacity: 0.75 }}>Выберите площадку — нажмите на неё, — чтобы покрасить или убрать.</p>
+          )}
         </>
       )}
 

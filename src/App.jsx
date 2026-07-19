@@ -128,7 +128,9 @@ export default function App() {
   const [decorTab, setDecorTab] = useState('plots');
   const [decorPlaceKey, setDecorPlaceKey] = useState(null);
   const [selectedDecorId, setSelectedDecorId] = useState(null);
+  const [selectedPlot, setSelectedPlot] = useState(null); // {q,r} — выбранная площадка
   const [pendingPlotRemove, setPendingPlotRemove] = useState(null); // {q,r,count} — подтверждение
+  const [showHub, setShowHub] = useState(false); // единое меню магазина/обустройства
   const [showMenu, setShowMenu] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showBottle, setShowBottle] = useState(false);
@@ -642,6 +644,7 @@ export default function App() {
       return next;
     });
     setPendingPlotRemove(null);
+    setSelectedPlot(null);
   }, [code]);
 
   const handlePlotRemove = useCallback((q, r) => {
@@ -710,12 +713,17 @@ export default function App() {
     if (d) handleDecorUpdate({ id: d.id, x: d.x, z: d.z, rot: (d.rot || 0) + Math.PI / 6 });
   }, [selectedDecorId, settings.decor_layout, handleDecorUpdate]);
 
-  const handleSetPlotColor = useCallback((hex) => {
-    setSettings((prev) => ({ ...prev, plot_color: hex }));
-    setSetting(code, 'plot_color', hex).catch((e) => console.warn('Цвет площадок не синхронизирован:', e));
-  }, [code]);
+  // покрасить ВЫБРАННУЮ площадку
+  const handlePlotColor = useCallback((hex) => {
+    if (!selectedPlot) return;
+    setSettings((prev) => {
+      const v = stringifyPlots(parsePlots(prev.plots).map((p) => (p.q === selectedPlot.q && p.r === selectedPlot.r ? { ...p, color: hex } : p)));
+      setSetting(code, 'plots', v).catch((e) => console.warn('Площадки не синхронизированы:', e));
+      return { ...prev, plots: v };
+    });
+  }, [code, selectedPlot]);
 
-  const closeDecor = useCallback(() => { setShowDecor(false); setDecorPlaceKey(null); setSelectedDecorId(null); setPendingPlotRemove(null); }, []);
+  const closeDecor = useCallback(() => { setShowDecor(false); setDecorPlaceKey(null); setSelectedDecorId(null); setSelectedPlot(null); setPendingPlotRemove(null); }, []);
 
   // open an isolated preview: the real island, purchases and settings are untouched
   const handleTryPack = useCallback((pack) => {
@@ -829,6 +837,7 @@ export default function App() {
     if (editingEvent) { setEditingEvent(null); return true; }
     if (showAdd) { setShowAdd(false); return true; }
     if (selectedEvent) { setSelectedEvent(null); return true; }
+    if (showHub) { setShowHub(false); return true; }
     if (showDecor) { closeDecor(); return true; }
     if (showShop) { setShowShop(false); return true; }
     if (showWishes) { setShowWishes(false); return true; }
@@ -902,9 +911,9 @@ export default function App() {
         decor={decor}
         decorMode={decorMode}
         decorPlaceKey={decorPlaceKey}
-        plotColor={settings.plot_color}
+        selectedPlot={selectedPlot}
         onPlotAdd={handlePlotAdd}
-        onPlotRemove={handlePlotRemove}
+        onPlotSelect={(q, r) => setSelectedPlot(q == null ? null : { q, r })}
         onDecorPlace={handleDecorPlace}
         onDecorUpdate={handleDecorUpdate}
         onDecorRemove={handleDecorRemove}
@@ -915,13 +924,12 @@ export default function App() {
         <>
           <div className="topbar">
             <div className="topbar-right">
-              <button className="coin-btn mono" onClick={() => setShowShop(true)} title="Лавка улучшений">
+              <button className="coin-btn mono" onClick={() => setShowHub(true)} title="Магазин и обустройство">
                 🪙 {balance}
               </button>
             </div>
           </div>
           <button className="menu-btn" onClick={() => setShowMenu(true)} aria-label="Меню">☰</button>
-          <button className="fab-decor" onClick={() => setShowDecor(true)} aria-label="Обустроить остров">🪴</button>
           <button className="fab-add" onClick={() => setShowAdd(true)}>{tr('add_event')}</button>
           <div className="rotate-hint">{tr('rotate_hint')}</div>
         </>
@@ -931,10 +939,12 @@ export default function App() {
         <DecorPanel
           items={DECOR_ITEMS}
           inventory={inventory}
-          plotColor={settings.plot_color}
-          onPickColor={handleSetPlotColor}
+          selectedPlot={selectedPlot}
+          selectedPlotColor={selectedPlot ? (plots.find((p) => p.q === selectedPlot.q && p.r === selectedPlot.r)?.color || '') : ''}
+          onPlotColor={handlePlotColor}
+          onRemovePlot={() => selectedPlot && handlePlotRemove(selectedPlot.q, selectedPlot.r)}
           tab={decorTab}
-          onTab={(t) => { setDecorTab(t); setDecorPlaceKey(null); setSelectedDecorId(null); }}
+          onTab={(t) => { setDecorTab(t); setDecorPlaceKey(null); setSelectedDecorId(null); setSelectedPlot(null); }}
           placeKey={decorPlaceKey}
           onBuy={handleBuyDecor}
           onPickItem={(k) => { if (!(inventory[k] > 0)) return; setDecorPlaceKey((cur) => (cur === k ? null : k)); setSelectedDecorId(null); }}
@@ -954,6 +964,33 @@ export default function App() {
             <div className="modal-actions">
               <button className="btn" style={{ flex: 1 }} onClick={() => setPendingPlotRemove(null)}>Отмена</button>
               <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => doPlotRemove(pendingPlotRemove.q, pendingPlotRemove.r)}>Убрать</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showHub && (
+        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setShowHub(false)}>
+          <div className="modal hub">
+            <button className="hub-x" onClick={() => setShowHub(false)} aria-label="Закрыть">✕</button>
+            <h2>Обустроить остров</h2>
+            <p className="sub mono">🪙 {balance} монет</p>
+            <div className="hub-options">
+              <button className="hub-opt" onClick={() => { setShowHub(false); setSelectedPlot(null); setSelectedDecorId(null); setDecorPlaceKey(null); setDecorTab('plots'); setShowDecor(true); }}>
+                <span className="hub-emoji">🟩</span>
+                <span className="hub-text"><b>Площадки</b><small>Добавить и покрасить шестиугольники</small></span>
+                <span className="hub-arrow">›</span>
+              </button>
+              <button className="hub-opt" onClick={() => { setShowHub(false); setSelectedPlot(null); setSelectedDecorId(null); setDecorPlaceKey(null); setDecorTab('items'); setShowDecor(true); }}>
+                <span className="hub-emoji">🪑</span>
+                <span className="hub-text"><b>Предметы</b><small>Купить и расставить декор</small></span>
+                <span className="hub-arrow">›</span>
+              </button>
+              <button className="hub-opt" onClick={() => { setShowHub(false); setShowShop(true); }}>
+                <span className="hub-emoji">✨</span>
+                <span className="hub-text"><b>Улучшения</b><small>Небо, палитра, эффекты, звуки, море</small></span>
+                <span className="hub-arrow">›</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1041,7 +1078,7 @@ export default function App() {
           code={code}
           balance={balance}
           onCalendar={() => { setShowMenu(false); setShowCalendar(true); }}
-          onShop={() => { setShowMenu(false); setShowShop(true); }}
+          onShop={() => { setShowMenu(false); setShowHub(true); }}
           onWishes={() => { setShowMenu(false); setShowWishes(true); }}
           onJar={() => { setShowMenu(false); setShowJar(true); }}
           onFigures={() => { setShowMenu(false); setShowFigures(true); }}
